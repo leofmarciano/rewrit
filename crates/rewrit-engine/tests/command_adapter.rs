@@ -56,8 +56,9 @@ timeout_ms = 30000
             && divergence.severity == Severity::Blocking
     }));
     assert!(report.divergences.iter().any(|divergence| {
-        divergence.kind == DivergenceKind::OutputMismatch
+        divergence.kind == DivergenceKind::TypeMismatch
             && divergence.severity == Severity::Blocking
+            && divergence.path.as_deref() == Some("$.value.amount")
     }));
 }
 

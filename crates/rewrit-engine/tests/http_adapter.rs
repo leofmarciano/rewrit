@@ -71,8 +71,9 @@ healthcheck = "http://127.0.0.1:{candidate_port}/health"
     assert_eq!(report.summary.exit_code, 1);
     assert_eq!(report.summary.cases_compared, 1);
     assert!(report.divergences.iter().any(|divergence| {
-        divergence.kind == DivergenceKind::OutputMismatch
+        divergence.kind == DivergenceKind::TypeMismatch
             && divergence.severity == Severity::Blocking
+            && divergence.path.as_deref() == Some("$.value.body.amount")
     }));
 }
 

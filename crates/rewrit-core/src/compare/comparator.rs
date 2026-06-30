@@ -1,4 +1,4 @@
-use crate::compare::diff::{divergence, value_type_name};
+use crate::compare::diff::{divergence, value_divergences};
 use crate::compare::error::errors_equivalent;
 use crate::policy::Policy;
 use rewrit_model::{CaseId, Divergence, DivergenceKind, Observation, Severity, SourceLocation};
@@ -71,22 +71,13 @@ impl Comparator for StrictComparator {
         }
 
         match (&reference.value, &candidate.value) {
-            (Some(left), Some(right)) if !ctx.policy.values_equivalent(left, right) => {
-                let kind = if value_type_name(left) != value_type_name(right) {
-                    DivergenceKind::TypeMismatch
-                } else {
-                    DivergenceKind::OutputMismatch
-                };
-                divergences.push(divergence(
-                    kind,
-                    reference.case_id.clone(),
-                    "$.value",
-                    "Canonical output values differ.",
-                    Some(left),
-                    Some(right),
-                    ctx,
-                ));
-            }
+            (Some(left), Some(right)) => divergences.extend(value_divergences(
+                &reference.case_id,
+                left,
+                right,
+                "$.value",
+                ctx,
+            )),
             (Some(left), None) => divergences.push(divergence(
                 DivergenceKind::OutputMismatch,
                 reference.case_id.clone(),
@@ -174,5 +165,128 @@ impl Comparator for StrictComparator {
             equivalent: divergences.is_empty(),
             divergences,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Comparator, CompareContext, StrictComparator};
+    use crate::policy::Policy;
+    use rewrit_model::{
+        CanonicalValue, CapturedText, CaseId, CaseStatus, DivergenceKind, Observation, RuntimeId,
+    };
+    use std::collections::BTreeMap;
+
+    #[test]
+    fn detects_json_type_mismatch_at_path() {
+        let comparison = StrictComparator.compare(
+            &observation(json_value(serde_json::json!({"amount": "199.90"}))),
+            &observation(json_value(serde_json::json!({"amount": 199.9}))),
+            &ctx(Policy::default()),
+        );
+
+        assert_eq!(comparison.divergences.len(), 1);
+        assert_eq!(comparison.divergences[0].kind, DivergenceKind::TypeMismatch);
+        assert_eq!(
+            comparison.divergences[0].path.as_deref(),
+            Some("$.value.amount")
+        );
+    }
+
+    #[test]
+    fn ignores_configured_json_path() {
+        let comparison = StrictComparator.compare(
+            &observation(json_value(serde_json::json!({"trace_id": "a", "ok": true}))),
+            &observation(json_value(serde_json::json!({"trace_id": "b", "ok": true}))),
+            &ctx(Policy {
+                ignore_paths: vec!["$.trace_id".to_string()],
+                ..Policy::default()
+            }),
+        );
+
+        assert!(comparison.equivalent);
+        assert!(comparison.divergences.is_empty());
+    }
+
+    #[test]
+    fn ignores_configured_http_header_noise() {
+        let reference = CanonicalValue::Object {
+            fields: BTreeMap::from([
+                (
+                    "headers".to_string(),
+                    CanonicalValue::Object {
+                        fields: BTreeMap::from([(
+                            "date".to_string(),
+                            CanonicalValue::String {
+                                value: "Mon, 01 Jan 2024 00:00:00 GMT".to_string(),
+                            },
+                        )]),
+                    },
+                ),
+                (
+                    "body".to_string(),
+                    json_value(serde_json::json!({"ok": true})),
+                ),
+            ]),
+        };
+        let candidate = CanonicalValue::Object {
+            fields: BTreeMap::from([
+                (
+                    "headers".to_string(),
+                    CanonicalValue::Object {
+                        fields: BTreeMap::from([(
+                            "date".to_string(),
+                            CanonicalValue::String {
+                                value: "Tue, 02 Jan 2024 00:00:00 GMT".to_string(),
+                            },
+                        )]),
+                    },
+                ),
+                (
+                    "body".to_string(),
+                    json_value(serde_json::json!({"ok": true})),
+                ),
+            ]),
+        };
+
+        let comparison = StrictComparator.compare(
+            &observation(reference),
+            &observation(candidate),
+            &ctx(Policy::default()),
+        );
+
+        assert!(comparison.equivalent);
+        assert!(comparison.divergences.is_empty());
+    }
+
+    fn ctx(policy: Policy) -> CompareContext {
+        CompareContext {
+            policy,
+            suite: None,
+            source_location: None,
+            target_location: None,
+            normalizers_applied: Vec::new(),
+        }
+    }
+
+    fn observation(value: CanonicalValue) -> Observation {
+        Observation {
+            case_id: CaseId::new("case.one"),
+            runtime_id: RuntimeId::new("runtime"),
+            status: CaseStatus::Passed,
+            value: Some(value),
+            error: None,
+            stdout: CapturedText::default(),
+            stderr: CapturedText::default(),
+            exit_code: Some(0),
+            duration_ms: 1,
+            effects: Vec::new(),
+            artifacts: Vec::new(),
+            metadata: BTreeMap::new(),
+        }
+    }
+
+    fn json_value(value: serde_json::Value) -> CanonicalValue {
+        CanonicalValue::Json { value }
     }
 }
