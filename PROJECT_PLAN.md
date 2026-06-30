@@ -85,7 +85,7 @@ runtime/framework specific code
 - [x] Write configured reports.
 - [x] Map failures to documented exit codes.
 - [x] Persist timestamped baselines beside `current.jsonl`.
-- [ ] Add global cancellation/timeout handling.
+- [x] Add global cancellation/timeout handling.
 - [x] Add lock files to prevent concurrent writes to the same store.
 - [x] Validate contract expectations against observations and report
 

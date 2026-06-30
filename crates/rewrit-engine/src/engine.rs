@@ -3,6 +3,7 @@ use crate::discovery::manifest::{
     PolicyConfig, ReportConfig, RuntimeConfig,
 };
 use crate::runner::process::{ProcessError, ProcessRunner, RuntimeProcess};
+use crate::runner::timeout::millis;
 use crate::store::baseline;
 use crate::store::filesystem::RewritStore;
 use rewrit_adapter_http::HttpAdapterError;
@@ -22,6 +23,7 @@ use rewrit_protocol::{
     decode_events, encode_request_line, AdapterCommand, AdapterEvent, AdapterRequest,
 };
 use std::collections::{BTreeMap, BTreeSet};
+use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use thiserror::Error;
@@ -86,6 +88,11 @@ pub enum EngineError {
         #[source]
         source: ProcessError,
     },
+    #[error("global {command} timeout after {timeout_ms}ms")]
+    GlobalTimeout {
+        command: &'static str,
+        timeout_ms: u64,
+    },
     #[error("adapter protocol error for runtime {runtime_id}: {source}")]
     Protocol {
         runtime_id: RuntimeId,
@@ -147,6 +154,7 @@ impl EngineError {
             | Self::RuntimeFailed { .. }
             | Self::StartServer { .. }
             | Self::Baseline(_) => 5,
+            Self::GlobalTimeout { .. } => 6,
             Self::Report(_) => 7,
             Self::EncodeProtocolRequest { .. } | Self::Io(_) => 70,
         }
@@ -209,6 +217,11 @@ impl Engine {
     }
 
     pub async fn doctor(&self) -> Result<Report, EngineError> {
+        self.with_global_timeout("doctor", self.doctor_inner())
+            .await
+    }
+
+    async fn doctor_inner(&self) -> Result<Report, EngineError> {
         let mut divergences = Vec::new();
         for runtime_id in self.manifest.runtimes.keys() {
             if let Err(error) = self.run_runtime(runtime_id, AdapterCommand::Doctor).await {
@@ -223,6 +236,14 @@ impl Engine {
     }
 
     pub async fn discover(&self, runtime_id: Option<&RuntimeId>) -> Result<Vec<Case>, EngineError> {
+        self.with_global_timeout("discover", self.discover_inner(runtime_id))
+            .await
+    }
+
+    async fn discover_inner(
+        &self,
+        runtime_id: Option<&RuntimeId>,
+    ) -> Result<Vec<Case>, EngineError> {
         let runtime_ids: Vec<RuntimeId> = match runtime_id {
             Some(runtime_id) => vec![runtime_id.clone()],
             None => self.manifest.runtimes.keys().cloned().collect(),
@@ -239,7 +260,11 @@ impl Engine {
         Ok(cases)
     }
 
-    pub async fn run(&self, _mode: RunMode) -> Result<Report, EngineError> {
+    pub async fn run(&self, mode: RunMode) -> Result<Report, EngineError> {
+        self.with_global_timeout("run", self.run_inner(mode)).await
+    }
+
+    async fn run_inner(&self, _mode: RunMode) -> Result<Report, EngineError> {
         let reference = self
             .run_runtime(&self.manifest.project.reference, AdapterCommand::Run)
             .await?;
@@ -252,6 +277,11 @@ impl Engine {
     }
 
     pub async fn capture(&self, runtime_id: &RuntimeId) -> Result<Report, EngineError> {
+        self.with_global_timeout("capture", self.capture_inner(runtime_id))
+            .await
+    }
+
+    async fn capture_inner(&self, runtime_id: &RuntimeId) -> Result<Report, EngineError> {
         let run = self.run_runtime(runtime_id, AdapterCommand::Run).await?;
         let _baseline_lock = self
             .store
@@ -264,6 +294,11 @@ impl Engine {
     }
 
     pub async fn verify(&self, runtime_id: &RuntimeId) -> Result<Report, EngineError> {
+        self.with_global_timeout("verify", self.verify_inner(runtime_id))
+            .await
+    }
+
+    async fn verify_inner(&self, runtime_id: &RuntimeId) -> Result<Report, EngineError> {
         let baseline_runtime = &self.manifest.project.reference;
         let baseline_observations = baseline::read_current(&self.store, baseline_runtime)?;
         let reference = RuntimeRun {
@@ -278,6 +313,14 @@ impl Engine {
     }
 
     pub async fn verify_contracts(&self, contract_paths: &[String]) -> Result<Report, EngineError> {
+        self.with_global_timeout("verify", self.verify_contracts_inner(contract_paths))
+            .await
+    }
+
+    async fn verify_contracts_inner(
+        &self,
+        contract_paths: &[String],
+    ) -> Result<Report, EngineError> {
         let reference_runtime = self
             .manifest
             .runtimes
@@ -317,6 +360,10 @@ impl Engine {
     }
 
     pub async fn audit(&self) -> Result<Report, EngineError> {
+        self.with_global_timeout("audit", self.audit_inner()).await
+    }
+
+    async fn audit_inner(&self) -> Result<Report, EngineError> {
         let reference = self
             .run_runtime(&self.manifest.project.reference, AdapterCommand::Discover)
             .await?;
@@ -335,7 +382,12 @@ impl Engine {
     }
 
     pub async fn explain(&self, case_id: &CaseId) -> Result<ExplainResult, EngineError> {
-        let report = self.run(RunMode::Mirror).await?;
+        self.with_global_timeout("explain", self.explain_inner(case_id))
+            .await
+    }
+
+    async fn explain_inner(&self, case_id: &CaseId) -> Result<ExplainResult, EngineError> {
+        let report = self.run_inner(RunMode::Mirror).await?;
         let divergences = report
             .divergences
             .into_iter()
@@ -345,6 +397,27 @@ impl Engine {
             case_id: case_id.clone(),
             divergences,
         })
+    }
+
+    async fn with_global_timeout<T, F>(
+        &self,
+        command: &'static str,
+        future: F,
+    ) -> Result<T, EngineError>
+    where
+        F: Future<Output = Result<T, EngineError>>,
+    {
+        let Some(timeout_ms) = self.manifest.runner.global_timeout_ms else {
+            return future.await;
+        };
+
+        match tokio::time::timeout(millis(timeout_ms), future).await {
+            Ok(result) => result,
+            Err(_) => Err(EngineError::GlobalTimeout {
+                command,
+                timeout_ms,
+            }),
+        }
     }
 
     async fn run_runtime(

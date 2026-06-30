@@ -212,6 +212,7 @@ pub enum NetworkMode {
 pub struct RunnerConfig {
     #[serde(default = "default_true")]
     pub kill_process_tree: bool,
+    pub global_timeout_ms: Option<u64>,
     pub default_timeout_ms: Option<u64>,
     pub max_stdout_bytes: Option<usize>,
     pub max_stderr_bytes: Option<usize>,
@@ -221,6 +222,7 @@ impl Default for RunnerConfig {
     fn default() -> Self {
         Self {
             kill_process_tree: true,
+            global_timeout_ms: None,
             default_timeout_ms: Some(30_000),
             max_stdout_bytes: Some(1_048_576),
             max_stderr_bytes: Some(1_048_576),

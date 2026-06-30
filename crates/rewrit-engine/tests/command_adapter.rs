@@ -194,6 +194,62 @@ output = "file"
     assert_eq!(cases[0].id.as_str(), "billing.invoice.create.success");
 }
 
+#[tokio::test]
+async fn command_adapter_honors_global_timeout() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    write_executable(
+        &temp.path().join("reference.sh"),
+        r#"#!/usr/bin/env sh
+set -eu
+sleep 2
+"#,
+    );
+    write_executable(
+        &temp.path().join("candidate.sh"),
+        r#"#!/usr/bin/env sh
+set -eu
+sleep 2
+"#,
+    );
+    fs::write(
+        temp.path().join("rewrit.toml"),
+        r#"[project]
+name = "command-global-timeout-test"
+reference = "reference"
+candidate = "candidate"
+reports_dir = ".rewrit/reports"
+baselines_dir = ".rewrit/baselines"
+
+[runner]
+global_timeout_ms = 50
+default_timeout_ms = 30000
+
+[runtimes.reference]
+adapter = "command"
+command = ["./reference.sh"]
+timeout_ms = 30000
+
+[runtimes.candidate]
+adapter = "command"
+command = ["./candidate.sh"]
+timeout_ms = 30000
+"#,
+    )
+    .expect("manifest");
+
+    let engine = Engine::from_manifest_path(temp.path().join("rewrit.toml")).expect("engine");
+    let error = engine.run(RunMode::Mirror).await.expect_err("timeout");
+
+    assert!(matches!(
+        error,
+        rewrit_engine::EngineError::GlobalTimeout {
+            command: "run",
+            timeout_ms: 50
+        }
+    ));
+    assert_eq!(error.exit_code(), 6);
+}
+
 fn write_executable(path: &Path, contents: &str) {
     let mut file = fs::File::create(path).expect("create script");
     file.write_all(contents.as_bytes()).expect("write script");

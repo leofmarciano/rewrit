@@ -17,7 +17,15 @@ async fn main() {
         .init();
 
     let cli = Cli::parse();
-    match run(cli).await {
+    let result = tokio::select! {
+        result = run(cli) => result,
+        signal = tokio::signal::ctrl_c() => match signal {
+            Ok(()) => Err(CliError::Cancelled),
+            Err(error) => Err(CliError::Io(error)),
+        },
+    };
+
+    match result {
         Ok(exit_code) => std::process::exit(exit_code),
         Err(error) => {
             eprintln!("error: {error}");
@@ -144,6 +152,8 @@ enum CliError {
     Json(#[from] serde_json::Error),
     #[error("{0}")]
     Io(#[from] std::io::Error),
+    #[error("cancelled by user")]
+    Cancelled,
 }
 
 impl From<commands::schema::SchemaExportError> for CliError {
@@ -162,6 +172,7 @@ impl CliError {
             Self::UnsupportedFeature { .. } => 9,
             Self::Json(_) => 70,
             Self::Io(_) => 7,
+            Self::Cancelled => 6,
         }
     }
 }
@@ -202,5 +213,10 @@ mod tests {
             error.to_string(),
             "unsupported run mode: baseline. expected one of: mirror"
         );
+    }
+
+    #[test]
+    fn cancelled_uses_global_timeout_exit_code() {
+        assert_eq!(CliError::Cancelled.exit_code(), 6);
     }
 }

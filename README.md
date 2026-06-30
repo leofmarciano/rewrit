@@ -316,6 +316,10 @@ contracts_dir = "contracts"
 baselines_dir = ".rewrit/baselines"
 reports_dir = ".rewrit/reports"
 
+[runner]
+global_timeout_ms = 120000
+default_timeout_ms = 30000
+
 [runtimes.legacy_laravel]
 adapter = "command"
 cwd = "../legacy"
