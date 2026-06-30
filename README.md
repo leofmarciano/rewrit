@@ -11,8 +11,56 @@ commands, jobs, or instrumented functions into canonical observations that the
 Rust engine can normalize, compare, report, and turn into CI-friendly exit
 codes.
 
-> Status: WIP. This repository is under active development. The README describes
-> the intended product, architecture, and protocol contract.
+Status: the planned MVP architecture in `PROJECT_PLAN.md` is implemented and
+covered by workspace tests. The repository still uses pre-1.0 semver while the
+public protocol and SDK ergonomics settle.
+
+## Quickstart
+
+Run the full Rust gate:
+
+```bash
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features
+cargo doc --workspace --all-features --no-deps
+```
+
+Run the smallest command-adapter example:
+
+```bash
+cargo run -p rewrit-cli -- run --manifest examples/command-to-command/rewrit.toml
+```
+
+Run the HTTP contract fixture:
+
+```bash
+cargo run -p rewrit-cli -- verify \
+  --manifest examples/http-to-http/rewrit.toml \
+  --contracts 'contracts/**/*.json'
+```
+
+Run the migration showcases:
+
+```bash
+cargo run -p rewrit-cli -- run --manifest examples/laravel-to-encore/rewrit.toml
+cargo run -p rewrit-cli -- run --manifest examples/django-to-rust/rewrit.toml
+cargo run -p rewrit-cli -- run --manifest examples/php-to-node-monolith/rewrit.toml
+```
+
+Create a runnable Laravel-to-Encore scaffold:
+
+```bash
+cargo build -p rewrit-cli
+export PATH="$PWD/target/debug:$PATH"
+rm -rf /tmp/rewrit-demo
+mkdir /tmp/rewrit-demo
+cd /tmp/rewrit-demo
+rewrit init --template laravel-to-encore
+rewrit run --mode mirror
+rewrit capture --runtime legacy_laravel
+rewrit verify --runtime encore_ts
+```
 
 ## Product Thesis
 
@@ -505,7 +553,7 @@ Report targets:
 - HTML
 - Markdown
 
-Each blocking divergence should include enough context to locate and fix it:
+Each blocking divergence includes enough context to locate and fix it:
 
 - case ID
 - suite
@@ -591,7 +639,7 @@ examples/
   php-to-node-monolith/
 ```
 
-## Target CLI
+## CLI
 
 ```bash
 rewrit init --template laravel-to-encore
