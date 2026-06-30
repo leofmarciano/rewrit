@@ -148,6 +148,7 @@ pub struct Engine {
 struct RuntimeRun {
     cases: Vec<Case>,
     observations: Vec<Observation>,
+    divergences: Vec<Divergence>,
 }
 
 #[derive(Debug, Clone)]
@@ -241,6 +242,7 @@ impl Engine {
         let reference = RuntimeRun {
             cases: Vec::new(),
             observations: baseline_observations,
+            divergences: Vec::new(),
         };
         let candidate = self.run_runtime(runtime_id).await?;
         let report = self.compare_runs(reference, candidate);
@@ -368,6 +370,7 @@ impl Engine {
             return Ok(RuntimeRun {
                 cases: Vec::new(),
                 observations: vec![observation],
+                divergences: Vec::new(),
             });
         }
 
@@ -485,6 +488,7 @@ impl Engine {
 
         let mut cases = Vec::new();
         let mut observations = Vec::new();
+        let mut divergences = Vec::new();
         for loaded in &loaded_contracts {
             cases.push(case_from_contract(loaded));
             match rewrit_adapter_http::execute_contract(
@@ -495,7 +499,13 @@ impl Engine {
             )
             .await
             {
-                Ok(observation) => observations.push(observation),
+                Ok(observation) => {
+                    divergences.extend(validate_http_contract_observation(
+                        &loaded.contract,
+                        &observation,
+                    ));
+                    observations.push(observation);
+                }
                 Err(error) => observations.push(http_adapter_error_observation(
                     runtime_id,
                     &loaded.contract.id,
@@ -511,6 +521,7 @@ impl Engine {
         Ok(RuntimeRun {
             cases,
             observations,
+            divergences,
         })
     }
 
@@ -644,7 +655,8 @@ impl Engine {
         all_ids.extend(candidate_by_id.keys().cloned());
 
         let mut divergences = Vec::new();
-        let mut equivalent = 0usize;
+        divergences.extend(reference.divergences);
+        divergences.extend(candidate.divergences);
         let mut normalizers_applied = Vec::new();
         let policy_engine = self.policy_engine();
         let normalize_ctx = NormalizeContext {
@@ -684,9 +696,6 @@ impl Engine {
                             normalizers_applied: applied_names,
                         },
                     );
-                    if comparison.equivalent {
-                        equivalent += 1;
-                    }
                     divergences.extend(comparison.divergences);
                 }
                 (Some(_), None) => divergences.push(case_divergence(
@@ -712,11 +721,17 @@ impl Engine {
         let mut report =
             self.report_from_divergences("run", reference.cases, Vec::new(), divergences);
         report.summary.cases_compared = all_ids.len();
-        report.summary.equivalent = equivalent;
+        let blocking_case_ids = report
+            .divergences
+            .iter()
+            .filter(|divergence| matches!(divergence.severity, Severity::Blocking))
+            .map(|divergence| divergence.case_id.clone())
+            .collect::<BTreeSet<_>>();
+        report.summary.equivalent = all_ids.len().saturating_sub(blocking_case_ids.len());
         report.summary.parity_ratio = if report.summary.cases_compared == 0 {
             0.0
         } else {
-            equivalent as f64 / report.summary.cases_compared as f64
+            report.summary.equivalent as f64 / report.summary.cases_compared as f64
         };
         report.normalizers_applied = normalizers_applied;
         report.summary.exit_code = exit_code_for_report(&report);
@@ -1010,6 +1025,230 @@ fn http_adapter_error_observation(
         effects: Vec::new(),
         artifacts: Vec::new(),
         metadata: BTreeMap::new(),
+    }
+}
+
+fn validate_http_contract_observation(
+    contract: &Contract,
+    observation: &Observation,
+) -> Vec<Divergence> {
+    let mut divergences = Vec::new();
+    let Some(value) = observation.value.as_ref() else {
+        return vec![contract_divergence(
+            contract.id.clone(),
+            DivergenceKind::SchemaMismatch,
+            "$.value",
+            "Observation has no HTTP value to validate against the contract.",
+            contract.expect.json_schema.as_ref(),
+            Option::<&serde_json::Value>::None,
+        )];
+    };
+
+    if let Some(expected_status) = contract.expect.status {
+        match http_status(value) {
+            Some(actual_status) if actual_status == expected_status => {}
+            actual_status => {
+                let expected = serde_json::json!(expected_status);
+                let actual = actual_status.map(|status| serde_json::json!(status));
+                divergences.push(contract_divergence(
+                    contract.id.clone(),
+                    DivergenceKind::OutputMismatch,
+                    "$.value.status",
+                    format!(
+                        "HTTP status does not match contract expectation: expected {expected_status}, got {}.",
+                        actual_status
+                            .map(|status| status.to_string())
+                            .unwrap_or_else(|| "<missing>".to_string())
+                    ),
+                    Some(&expected),
+                    actual.as_ref(),
+                ));
+            }
+        }
+    }
+
+    if let Some(schema) = &contract.expect.json_schema {
+        match http_body_json(value) {
+            Some(body) => divergences.extend(validate_json_schema(
+                &contract.id,
+                schema,
+                body,
+                "$.value.body",
+            )),
+            None => divergences.push(contract_divergence(
+                contract.id.clone(),
+                DivergenceKind::SchemaMismatch,
+                "$.value.body",
+                "HTTP body is not JSON and cannot be validated against json_schema.",
+                Some(schema),
+                Option::<&serde_json::Value>::None,
+            )),
+        }
+    }
+
+    divergences
+}
+
+fn http_status(value: &rewrit_model::CanonicalValue) -> Option<u16> {
+    let rewrit_model::CanonicalValue::Object { fields } = value else {
+        return None;
+    };
+    let rewrit_model::CanonicalValue::Integer { value } = fields.get("status")? else {
+        return None;
+    };
+    value.parse().ok()
+}
+
+fn http_body_json(value: &rewrit_model::CanonicalValue) -> Option<&serde_json::Value> {
+    let rewrit_model::CanonicalValue::Object { fields } = value else {
+        return None;
+    };
+    match fields.get("body")? {
+        rewrit_model::CanonicalValue::Json { value } => Some(value),
+        _ => None,
+    }
+}
+
+fn validate_json_schema(
+    case_id: &CaseId,
+    schema: &serde_json::Value,
+    value: &serde_json::Value,
+    path: &str,
+) -> Vec<Divergence> {
+    let mut divergences = Vec::new();
+    if let Some(expected_type) = schema.get("type").and_then(serde_json::Value::as_str) {
+        if !json_type_matches(expected_type, value) {
+            divergences.push(contract_divergence(
+                case_id.clone(),
+                DivergenceKind::SchemaMismatch,
+                path,
+                format!(
+                    "JSON schema type mismatch: expected {expected_type}, got {}.",
+                    json_kind(value)
+                ),
+                Some(schema),
+                Some(value),
+            ));
+            return divergences;
+        }
+    }
+
+    if let Some(expected_const) = schema.get("const") {
+        if value != expected_const {
+            divergences.push(contract_divergence(
+                case_id.clone(),
+                DivergenceKind::SchemaMismatch,
+                path,
+                "JSON value does not match schema const.",
+                Some(expected_const),
+                Some(value),
+            ));
+        }
+    }
+
+    if let Some(pattern) = schema.get("pattern").and_then(serde_json::Value::as_str) {
+        match value.as_str() {
+            Some(text) if regex::Regex::new(pattern).is_ok_and(|regex| regex.is_match(text)) => {}
+            _ => divergences.push(contract_divergence(
+                case_id.clone(),
+                DivergenceKind::SchemaMismatch,
+                path,
+                format!("JSON string does not match schema pattern {pattern}."),
+                Some(schema),
+                Some(value),
+            )),
+        }
+    }
+
+    if let serde_json::Value::Object(object) = value {
+        if let Some(required) = schema.get("required").and_then(serde_json::Value::as_array) {
+            for required_field in required.iter().filter_map(serde_json::Value::as_str) {
+                if !object.contains_key(required_field) {
+                    let expected = serde_json::json!(required_field);
+                    divergences.push(contract_divergence(
+                        case_id.clone(),
+                        DivergenceKind::SchemaMismatch,
+                        format!("{path}.{required_field}"),
+                        "JSON object is missing a schema-required field.",
+                        Some(&expected),
+                        Option::<&serde_json::Value>::None,
+                    ));
+                }
+            }
+        }
+
+        if let Some(properties) = schema
+            .get("properties")
+            .and_then(serde_json::Value::as_object)
+        {
+            for (property, property_schema) in properties {
+                if let Some(property_value) = object.get(property) {
+                    divergences.extend(validate_json_schema(
+                        case_id,
+                        property_schema,
+                        property_value,
+                        &format!("{path}.{property}"),
+                    ));
+                }
+            }
+        }
+    }
+
+    divergences
+}
+
+fn json_type_matches(expected_type: &str, value: &serde_json::Value) -> bool {
+    match expected_type {
+        "object" => value.is_object(),
+        "array" => value.is_array(),
+        "string" => value.is_string(),
+        "number" => value.is_number(),
+        "integer" => value.as_i64().is_some() || value.as_u64().is_some(),
+        "boolean" => value.is_boolean(),
+        "null" => value.is_null(),
+        _ => true,
+    }
+}
+
+fn json_kind(value: &serde_json::Value) -> &'static str {
+    match value {
+        serde_json::Value::Null => "null",
+        serde_json::Value::Bool(_) => "boolean",
+        serde_json::Value::Number(number) if number.is_i64() || number.is_u64() => "integer",
+        serde_json::Value::Number(_) => "number",
+        serde_json::Value::String(_) => "string",
+        serde_json::Value::Array(_) => "array",
+        serde_json::Value::Object(_) => "object",
+    }
+}
+
+fn contract_divergence<T, U>(
+    case_id: CaseId,
+    kind: DivergenceKind,
+    path: impl Into<String>,
+    message: impl Into<String>,
+    reference: Option<&T>,
+    candidate: Option<&U>,
+) -> Divergence
+where
+    T: serde::Serialize + ?Sized,
+    U: serde::Serialize + ?Sized,
+{
+    Divergence {
+        machine_code: format!("{kind:?}").to_ascii_lowercase(),
+        kind,
+        severity: Severity::Blocking,
+        case_id,
+        suite: Some("contracts".to_string()),
+        path: Some(path.into()),
+        reference: reference.and_then(|value| serde_json::to_value(value).ok()),
+        candidate: candidate.and_then(|value| serde_json::to_value(value).ok()),
+        message: message.into(),
+        source_location: None,
+        target_location: None,
+        policy: Some("contract".to_string()),
+        normalizers_applied: Vec::new(),
+        hint: Some("Align the runtime response with the declared contract.".to_string()),
     }
 }
 
