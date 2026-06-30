@@ -11,4 +11,5 @@ pub mod django {
 
 pub mod pytest {
     pub const PLUGIN: &str = "rewrit_pytest.plugin";
+    pub const CASE_DECORATOR: &str = "rewrit_pytest.rewrit_case";
 }

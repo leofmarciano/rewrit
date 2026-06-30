@@ -133,7 +133,7 @@ runtime/framework specific code
 - [x] Vitest reporter and `test.rewrit`.
 - [x] Jest reporter.
 - [x] Encore helper(you will need to search about [encore.dev](http://encore.dev) ! its a runtime dont have .env and some props).
-- [ ] Pytest plugin collection hooks.
+- [x] Pytest plugin collection hooks.
 - [ ] Django helpers.
 - [ ] Rust cargo-test adapter and explicit helper.
 - [ ] Rust `#[rewrit::case]` macro.
