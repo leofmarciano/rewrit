@@ -65,6 +65,51 @@ fn node_sdk_emits_vitest_jest_and_encore_observations() {
     assert_eq!(encore["effects"][0]["kind"], "db_delta");
 }
 
+#[test]
+fn python_sdk_emits_pytest_and_django_observations() {
+    if !command_exists("python3") {
+        eprintln!("skipping Python SDK observation test because `python3` is not available");
+        return;
+    }
+
+    let temp = tempfile::tempdir().expect("tempdir");
+    let events_path = temp.path().join("events.ndjson");
+    let script_path = temp.path().join("python-sdk.py");
+    std::fs::write(&script_path, python_sdk_script()).expect("write python script");
+
+    let output = Command::new("python3")
+        .arg(&script_path)
+        .env("PYTHONPATH", workspace_root().join("sdks/python"))
+        .env("REWRIT_EVENTS_PATH", &events_path)
+        .env("REWRIT_RUNTIME_ID", "reference")
+        .output()
+        .expect("run python");
+    assert_success(&output, "python sdk script");
+
+    let events = read_events(&events_path);
+    assert_case_discoveries(
+        &events,
+        [
+            "sdk.python.pytest_auto",
+            "sdk.python.decorator_manual",
+            "sdk.python.django_http",
+        ],
+    );
+    assert_observations(
+        &events,
+        [
+            "sdk.python.pytest_auto",
+            "sdk.python.decorator_manual",
+            "sdk.python.django_http",
+        ],
+    );
+    let django = observation(&events, "sdk.python.django_http");
+    assert_eq!(django["runtime_id"], "reference");
+    assert_eq!(django["value"]["fields"]["status"]["value"], "201");
+    assert_eq!(django["value"]["fields"]["body"]["value"]["ok"], true);
+    assert_eq!(django["effects"][0]["kind"], "db_delta");
+}
+
 fn php_sdk_script() -> String {
     let sdk = workspace_root().join("sdks/php/src");
     format!(
@@ -190,6 +235,114 @@ observeDbDelta("billing_invoices", {{
     )
 }
 
+fn python_sdk_script() -> &'static str {
+    r#"from __future__ import annotations
+
+import sys
+import types
+
+
+def hookimpl(**_kwargs):
+    def decorator(fn):
+        return fn
+
+    return decorator
+
+
+sys.modules["pytest"] = types.SimpleNamespace(
+    hookimpl=hookimpl,
+    Config=object,
+    Item=object,
+    CallInfo=object,
+)
+
+from rewrit_pytest.plugin import (  # noqa: E402
+    emit_observation,
+    pytest_collection_modifyitems,
+    pytest_runtest_makereport,
+    pytest_runtest_setup,
+    rewrit_case,
+)
+from rewrit_pytest.django import db_delta, observe_http_response  # noqa: E402
+
+
+class Marker:
+    def __init__(self, case_id, suite_id="sdk", title=None):
+        self.args = (case_id,)
+        self.kwargs = {"suite_id": suite_id, "title": title}
+
+
+class Item:
+    def __init__(self, name, marker=None, obj=None):
+        self.name = name
+        self.path = "tests/test_rewrit.py"
+        self.lineno = 10
+        self.obj = obj
+        self._marker = marker
+
+    def get_closest_marker(self, name):
+        return self._marker if name == "rewrit_case" else None
+
+
+class Report:
+    when = "call"
+    passed = True
+
+
+class Outcome:
+    def get_result(self):
+        return Report()
+
+
+def finish_makereport(item):
+    hook = pytest_runtest_makereport(item, object())
+    next(hook)
+    try:
+        hook.send(Outcome())
+    except StopIteration:
+        pass
+
+
+auto_item = Item("test_auto", Marker("sdk.python.pytest_auto", title="pytest auto"))
+pytest_collection_modifyitems(None, [auto_item])
+pytest_runtest_setup(auto_item)
+finish_makereport(auto_item)
+
+
+@rewrit_case("sdk.python.decorator_manual", suite_id="sdk", title="decorator manual")
+def decorated_case():
+    pass
+
+
+decorated_item = Item("decorated_case", obj=decorated_case)
+pytest_collection_modifyitems(None, [decorated_item])
+pytest_runtest_setup(decorated_item)
+emit_observation({"runner": "pytest"})
+
+
+class Response:
+    status_code = 201
+    headers = {"Content-Type": "application/json"}
+
+    def json(self):
+        return {"ok": True}
+
+
+django_item = Item("django_case", Marker("sdk.python.django_http", title="django http"))
+pytest_collection_modifyitems(None, [django_item])
+pytest_runtest_setup(django_item)
+observe_http_response(
+    Response(),
+    effects=[
+        db_delta(
+            "invoices",
+            inserted=[{"id": "inv_123", "amount": "199.90"}],
+        )
+    ],
+)
+"#
+}
+
 fn php_require(path: PathBuf) -> String {
     serde_json::to_string(&path.display().to_string()).expect("php require path")
 }
@@ -215,6 +368,18 @@ fn assert_observations<const N: usize>(events: &[Value], case_ids: [&str; N]) {
 
     for case_id in case_ids {
         assert!(observed.contains(case_id), "missing observation {case_id}");
+    }
+}
+
+fn assert_case_discoveries<const N: usize>(events: &[Value], case_ids: [&str; N]) {
+    let discovered = events
+        .iter()
+        .filter(|event| event["kind"] == "case_discovered")
+        .filter_map(|event| event["case"]["id"].as_str())
+        .collect::<BTreeSet<_>>();
+
+    for case_id in case_ids {
+        assert!(discovered.contains(case_id), "missing discovery {case_id}");
     }
 }
 

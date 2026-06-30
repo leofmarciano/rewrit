@@ -227,11 +227,11 @@ Acceptance:
 
 Acceptance:
 
-- [ ] Pytest plugin emits observations.
-- [ ] Django helper emits HTTP observations.
-- [ ] Rust SDK emits observations from tests.
-- [ ] Cargo test adapter runs candidate.
-- [ ] HTTP-first migration guide is backed by executable fixtures.
+- [x] Pytest plugin emits observations.
+- [x] Django helper emits HTTP observations.
+- [x] Rust SDK emits observations from tests.
+- [x] Cargo test adapter runs candidate.
+- [x] HTTP-first migration guide is backed by executable fixtures.
 
 ## Anti-Patterns To Keep Out
 
