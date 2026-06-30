@@ -131,7 +131,7 @@ runtime/framework specific code
 - [x] PHPUnit extension.
 - [x] Laravel helpers for HTTP response and DB deltas.
 - [x] Vitest reporter and `test.rewrit`.
-- [ ] Jest reporter.
+- [x] Jest reporter.
 - [ ] Encore helper(you will need to search about [encore.dev](http://encore.dev) ! its a runtime dont have .env and some props).
 - [ ] Pytest plugin collection hooks.
 - [ ] Django helpers.

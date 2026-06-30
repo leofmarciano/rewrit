@@ -12,6 +12,7 @@ pub mod encore {
 
 pub mod jest {
     pub const REPORTER: &str = "@rewrit/node/jest-reporter";
+    pub const TEST_HELPER: &str = "@rewrit/node/jest-reporter";
 }
 
 pub mod vitest {
