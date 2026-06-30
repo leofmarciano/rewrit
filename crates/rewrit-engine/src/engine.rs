@@ -1357,6 +1357,7 @@ fn apply_policy_config(policy: &mut Policy, config: &PolicyConfig) {
     }
     if let Some(json) = &config.json {
         policy.ignore_paths = json.ignore_paths.clone();
+        policy.unordered_paths = json.unordered_paths.clone();
     }
 }
 

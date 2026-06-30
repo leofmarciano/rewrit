@@ -90,6 +90,9 @@ pub fn value_divergences(
                 .collect()
         }
         (CanonicalValue::Array { items: left }, CanonicalValue::Array { items: right }) => {
+            if path_is_unordered(path, ctx) {
+                return unordered_array_divergences(case_id, left, right, path, ctx);
+            }
             let len = left.len().max(right.len());
             (0..len)
                 .flat_map(|idx| {
@@ -191,6 +194,9 @@ fn json_divergences(
                 .collect()
         }
         (serde_json::Value::Array(left), serde_json::Value::Array(right)) => {
+            if path_is_unordered(path, ctx) {
+                return unordered_json_array_divergences(case_id, left, right, path, ctx);
+            }
             let len = left.len().max(right.len());
             (0..len)
                 .flat_map(|idx| {
@@ -274,6 +280,13 @@ fn path_is_ignored(path: &str, ctx: &CompareContext) -> bool {
         .any(|ignored| path_matches_policy(path, ignored))
 }
 
+fn path_is_unordered(path: &str, ctx: &CompareContext) -> bool {
+    ctx.policy
+        .unordered_paths
+        .iter()
+        .any(|unordered| path_matches_policy(path, unordered))
+}
+
 fn path_matches_policy(path: &str, ignored: &str) -> bool {
     candidate_policy_paths(path)
         .iter()
@@ -310,6 +323,63 @@ fn wildcard_path_matches(path: &str, ignored: &str) -> bool {
     let prefix = ignored.split("[*]").next().unwrap_or_default();
     let suffix = ignored.split("[*]").nth(1).unwrap_or_default();
     path.starts_with(prefix) && path.ends_with(suffix)
+}
+
+fn unordered_json_array_divergences(
+    case_id: &CaseId,
+    reference: &[serde_json::Value],
+    candidate: &[serde_json::Value],
+    path: &str,
+    ctx: &CompareContext,
+) -> Vec<Divergence> {
+    if sorted_json_items(reference) == sorted_json_items(candidate) {
+        Vec::new()
+    } else {
+        vec![divergence(
+            DivergenceKind::OutputMismatch,
+            case_id.clone(),
+            path.to_string(),
+            "JSON array items differ after applying unordered array policy.",
+            Some(reference),
+            Some(candidate),
+            ctx,
+        )]
+    }
+}
+
+fn unordered_array_divergences(
+    case_id: &CaseId,
+    reference: &[CanonicalValue],
+    candidate: &[CanonicalValue],
+    path: &str,
+    ctx: &CompareContext,
+) -> Vec<Divergence> {
+    if sorted_serialized_items(reference) == sorted_serialized_items(candidate) {
+        Vec::new()
+    } else {
+        vec![divergence(
+            DivergenceKind::OutputMismatch,
+            case_id.clone(),
+            path.to_string(),
+            "Canonical array items differ after applying unordered array policy.",
+            Some(reference),
+            Some(candidate),
+            ctx,
+        )]
+    }
+}
+
+fn sorted_json_items(items: &[serde_json::Value]) -> Vec<String> {
+    sorted_serialized_items(items)
+}
+
+fn sorted_serialized_items<T: Serialize>(items: &[T]) -> Vec<String> {
+    let mut serialized = items
+        .iter()
+        .map(|item| serde_json::to_string(item).unwrap_or_default())
+        .collect::<Vec<_>>();
+    serialized.sort();
+    serialized
 }
 
 fn escape_path_segment(segment: &str) -> String {

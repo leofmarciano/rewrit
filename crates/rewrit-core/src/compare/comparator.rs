@@ -209,6 +209,25 @@ mod tests {
     }
 
     #[test]
+    fn treats_configured_json_array_path_as_unordered() {
+        let comparison = StrictComparator.compare(
+            &observation(json_value(serde_json::json!({
+                "items": [{"id": 2}, {"id": 1}]
+            }))),
+            &observation(json_value(serde_json::json!({
+                "items": [{"id": 1}, {"id": 2}]
+            }))),
+            &ctx(Policy {
+                unordered_paths: vec!["$.items".to_string()],
+                ..Policy::default()
+            }),
+        );
+
+        assert!(comparison.equivalent);
+        assert!(comparison.divergences.is_empty());
+    }
+
+    #[test]
     fn ignores_configured_http_header_noise() {
         let reference = CanonicalValue::Object {
             fields: BTreeMap::from([

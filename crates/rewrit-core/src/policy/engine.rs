@@ -19,6 +19,7 @@ pub struct Policy {
     pub ignore_stack_trace: bool,
     pub ignore_error_message: bool,
     pub ignore_paths: Vec<String>,
+    pub unordered_paths: Vec<String>,
     pub ignored_headers: Vec<String>,
 }
 
@@ -39,6 +40,7 @@ impl Default for Policy {
             ignore_stack_trace: true,
             ignore_error_message: false,
             ignore_paths: Vec::new(),
+            unordered_paths: Vec::new(),
             ignored_headers: vec![
                 "date".to_string(),
                 "server".to_string(),

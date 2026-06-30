@@ -67,7 +67,7 @@ runtime/framework specific code
 - [x] Honor ignored HTTP headers.
 - [x] Keep waivers visible and make expired waivers blocking.
 - [x] Implement path-scoped normalizer application for configured paths.
-- [ ] Implement JSON unordered array paths.
+- [x] Implement JSON unordered array paths.
 - [ ] Implement DB delta field/table mapping in comparison.
 - [ ] Implement queue/event/file/cache/email/log comparators.
 - [ ] Add property tests for idempotent normalization and `compare(a, a)`.
