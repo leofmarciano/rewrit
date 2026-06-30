@@ -10,8 +10,10 @@ Baseline protections:
 - stdout and stderr byte limits,
 - secret redaction in captured output,
 - temporary `.rewrit/tmp` area,
-- no Docker or Podman sandbox requirement in MVP 1.
+- optional Docker or Podman sandboxing through `[security.sandbox]`.
+
+Sandboxing is disabled by default and is intended for trusted images configured
+by the project. Rewrit does not fetch or build images automatically.
 
 Report vulnerabilities privately through the project security contact before
 public disclosure.
-

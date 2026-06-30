@@ -708,8 +708,22 @@ Built-in HTTP runtimes enforce `network_mode = "disabled"` and
 `network_mode = "loopback_only"`; command/framework adapters receive the same
 mode through `REWRIT_NETWORK_MODE`.
 
-Container sandboxing can come later. It should not block the core parity engine
-MVP.
+Container sandboxing is optional and applies to command-compatible runtimes. It
+wraps the configured command in `docker run` or `podman run`, mounts the runtime
+`cwd` and Rewrit temp directory at the same absolute paths, and passes protocol
+environment variables into the container.
+
+```toml
+[security.sandbox]
+enabled = true
+engine = "docker" # or "podman"
+image = "php:8.3-cli"
+network = "disabled" # inherit, disabled, or host
+extra_args = ["--cpus=2"]
+```
+
+Sandboxing remains opt-in; local process execution is still the default trusted
+repository model.
 
 ## Anti-Patterns
 

@@ -168,7 +168,7 @@ runtime/framework specific code
 - [x] Env allowlist enforcement.
 - [x] Network control configuration.
 - [x] Temp dir isolation per run.
-- [ ] Optional Docker/Podman sandbox after MVP.
+- [x] Optional Docker/Podman sandbox after MVP.
 
 ### 11. Quality Gates
 

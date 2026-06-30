@@ -1,5 +1,6 @@
 use crate::discovery::manifest::{NetworkMode, RunnerConfig, RuntimeConfig, SecurityConfig};
 use crate::runner::env::{truncate, Redactor};
+use crate::runner::sandbox::{SandboxConfig, SandboxNetwork};
 use crate::runner::timeout::millis;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -17,6 +18,7 @@ pub struct RuntimeProcess {
     pub timeout_ms: u64,
     pub max_stdout_bytes: usize,
     pub max_stderr_bytes: usize,
+    pub sandbox: SandboxConfig,
 }
 
 #[derive(Debug, Clone)]
@@ -45,6 +47,7 @@ pub struct ProcessRunner {
     redactor: Redactor,
     env_allowlist: Vec<String>,
     network_mode: NetworkMode,
+    sandbox: SandboxConfig,
 }
 
 impl ProcessRunner {
@@ -55,6 +58,7 @@ impl ProcessRunner {
             redactor: Redactor::new(&security.redact_patterns),
             env_allowlist: security.env_allowlist.clone(),
             network_mode: security.network_mode,
+            sandbox: security.sandbox.clone(),
         }
     }
 
@@ -75,6 +79,7 @@ impl ProcessRunner {
                 .unwrap_or(30_000),
             max_stdout_bytes: self.runner.max_stdout_bytes.unwrap_or(1_048_576),
             max_stderr_bytes: self.runner.max_stderr_bytes.unwrap_or(1_048_576),
+            sandbox: self.sandbox.clone(),
         }
     }
 
@@ -103,13 +108,14 @@ impl ProcessRunner {
     }
 
     pub async fn run(&self, process: &RuntimeProcess) -> Result<ProcessOutput, ProcessError> {
-        let Some((program, args)) = process.command.split_first() else {
+        let Some((_program, _args)) = process.command.split_first() else {
             return Err(ProcessError::EmptyCommand);
         };
+        let (program, args) = command_with_optional_sandbox(process, self.network_mode);
 
         let mut command = Command::new(program);
         command
-            .args(args)
+            .args(args.iter())
             .current_dir(&process.cwd)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
@@ -151,6 +157,62 @@ impl ProcessRunner {
             timed_out: false,
         })
     }
+}
+
+fn command_with_optional_sandbox(
+    process: &RuntimeProcess,
+    network_mode: NetworkMode,
+) -> (String, Vec<String>) {
+    let Some((program, args)) = process.command.split_first() else {
+        return (String::new(), Vec::new());
+    };
+    if !process.sandbox.enabled {
+        return (program.clone(), args.to_vec());
+    }
+
+    let sandbox = &process.sandbox;
+    let image = sandbox.image.clone().unwrap_or_default();
+    let mut wrapped = vec!["run".to_string(), "--rm".to_string(), "-i".to_string()];
+
+    match sandbox.network {
+        SandboxNetwork::Inherit => {}
+        SandboxNetwork::Disabled => wrapped.push("--network=none".to_string()),
+        SandboxNetwork::Host => wrapped.push("--network=host".to_string()),
+    }
+
+    wrapped.extend(sandbox.extra_args.clone());
+    wrapped.extend([
+        "-v".to_string(),
+        format!("{}:{}", process.cwd.display(), process.cwd.display()),
+        "-w".to_string(),
+        process.cwd.display().to_string(),
+    ]);
+    if let Some(temp_dir) = &process.temp_dir {
+        wrapped.extend([
+            "-v".to_string(),
+            format!("{}:{}", temp_dir.display(), temp_dir.display()),
+            "-e".to_string(),
+            format!("TMPDIR={}", temp_dir.display()),
+            "-e".to_string(),
+            format!("TMP={}", temp_dir.display()),
+            "-e".to_string(),
+            format!("TEMP={}", temp_dir.display()),
+        ]);
+    }
+
+    wrapped.extend([
+        "-e".to_string(),
+        format!("REWRIT_NETWORK_MODE={}", network_mode_name(network_mode)),
+    ]);
+    for (key, value) in &process.env {
+        wrapped.extend(["-e".to_string(), format!("{key}={value}")]);
+    }
+
+    wrapped.push(image);
+    wrapped.push(program.clone());
+    wrapped.extend(args.iter().cloned());
+
+    (sandbox.engine.command().to_string(), wrapped)
 }
 
 fn env_allowed(key: &str, allowlist: &[String]) -> bool {
@@ -202,6 +264,7 @@ mod tests {
             timeout_ms: 30_000,
             max_stdout_bytes: 1_048_576,
             max_stderr_bytes: 1_048_576,
+            sandbox: SandboxConfig::default(),
         };
 
         let output = runner.run(&process).await.expect("run");
@@ -233,6 +296,7 @@ mod tests {
             timeout_ms: 30_000,
             max_stdout_bytes: 1_048_576,
             max_stderr_bytes: 1_048_576,
+            sandbox: SandboxConfig::default(),
         };
 
         let output = runner.run(&process).await.expect("run");
@@ -244,5 +308,36 @@ mod tests {
         assert!(output
             .stdout
             .contains(&format!("TEMP={}", runtime_temp.display())));
+    }
+
+    #[test]
+    fn sandbox_wraps_command_for_container_runtime() {
+        let process = RuntimeProcess {
+            command: vec!["php".to_string(), "run.php".to_string()],
+            cwd: PathBuf::from("/repo/app"),
+            env: BTreeMap::from([(
+                "REWRIT_EVENTS_PATH".to_string(),
+                "/repo/.rewrit/events.ndjson".to_string(),
+            )]),
+            temp_dir: Some(PathBuf::from("/repo/.rewrit/tmp/run")),
+            timeout_ms: 30_000,
+            max_stdout_bytes: 1_048_576,
+            max_stderr_bytes: 1_048_576,
+            sandbox: SandboxConfig {
+                enabled: true,
+                image: Some("php:8.3-cli".to_string()),
+                network: SandboxNetwork::Disabled,
+                ..SandboxConfig::default()
+            },
+        };
+
+        let (program, args) = command_with_optional_sandbox(&process, NetworkMode::Disabled);
+
+        assert_eq!(program, "docker");
+        assert!(args.contains(&"--network=none".to_string()));
+        assert!(args.contains(&"php:8.3-cli".to_string()));
+        assert!(args.contains(&"php".to_string()));
+        assert!(args.contains(&"run.php".to_string()));
+        assert!(args.contains(&"REWRIT_EVENTS_PATH=/repo/.rewrit/events.ndjson".to_string()));
     }
 }

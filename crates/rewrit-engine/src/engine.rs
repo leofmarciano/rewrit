@@ -1399,6 +1399,18 @@ fn validate_manifest(manifest: &Manifest) -> Result<(), EngineError> {
             )));
         }
     }
+    if manifest.security.sandbox.enabled
+        && manifest
+            .security
+            .sandbox
+            .image
+            .as_deref()
+            .map_or(true, str::is_empty)
+    {
+        return Err(EngineError::InvalidManifest(
+            "security.sandbox.image is required when sandbox is enabled".to_string(),
+        ));
+    }
     Ok(())
 }
 

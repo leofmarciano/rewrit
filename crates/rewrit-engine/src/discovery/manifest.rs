@@ -1,4 +1,5 @@
 use crate::discovery::binding::BindingConfig;
+use crate::runner::sandbox::SandboxConfig;
 use rewrit_model::{DbMap, RuntimeId, SuiteId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -183,6 +184,8 @@ pub struct SecurityConfig {
     pub env_allowlist: Vec<String>,
     #[serde(default)]
     pub network_mode: NetworkMode,
+    #[serde(default)]
+    pub sandbox: SandboxConfig,
 }
 
 impl Default for SecurityConfig {
@@ -195,6 +198,7 @@ impl Default for SecurityConfig {
             ],
             env_allowlist: Vec::new(),
             network_mode: NetworkMode::Inherit,
+            sandbox: SandboxConfig::default(),
         }
     }
 }
