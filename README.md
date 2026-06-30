@@ -678,6 +678,16 @@ with guardrails:
 - cap stdout/stderr capture
 - keep reports free of tokens and credentials
 
+When `security.env_allowlist` is set, inherited environment variables are
+cleared and only matching names are passed through. Runtime-local variables in
+`[runtimes.<id>.env]` are still passed because they are explicit manifest input.
+Entries may be exact names or prefix patterns ending in `*`.
+
+```toml
+[security]
+env_allowlist = ["PATH", "HOME", "CI", "REWRIT_*"]
+```
+
 Container sandboxing can come later. It should not block the core parity engine
 MVP.
 

@@ -139,6 +139,8 @@ pub struct SecurityConfig {
     pub redact_env: bool,
     #[serde(default)]
     pub redact_patterns: Vec<String>,
+    #[serde(default)]
+    pub env_allowlist: Vec<String>,
 }
 
 impl Default for SecurityConfig {
@@ -149,6 +151,7 @@ impl Default for SecurityConfig {
                 "sk_live_[A-Za-z0-9]+".to_string(),
                 "Bearer [A-Za-z0-9._-]+".to_string(),
             ],
+            env_allowlist: Vec::new(),
         }
     }
 }

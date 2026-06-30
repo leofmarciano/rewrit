@@ -627,11 +627,11 @@ impl Engine {
         command
             .args(args)
             .current_dir(cwd)
-            .envs(&runtime.env)
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .kill_on_drop(self.manifest.runner.kill_process_tree);
+        self.runner.apply_environment(&mut command, &runtime.env);
 
         command
             .spawn()

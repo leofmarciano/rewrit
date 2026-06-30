@@ -155,7 +155,7 @@ runtime/framework specific code
 - [x] Process kill-on-drop.
 - [x] Env redaction patterns for captured output.
 - [x] Stdout/stderr byte limits.
-- [ ] Env allowlist enforcement.
+- [x] Env allowlist enforcement.
 - [ ] Network control configuration.
 - [ ] Temp dir isolation per run.
 - [ ] Optional Docker/Podman sandbox after MVP.

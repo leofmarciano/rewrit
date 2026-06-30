@@ -42,6 +42,7 @@ pub enum ProcessError {
 pub struct ProcessRunner {
     runner: RunnerConfig,
     redactor: Redactor,
+    env_allowlist: Vec<String>,
 }
 
 impl ProcessRunner {
@@ -50,6 +51,7 @@ impl ProcessRunner {
         Self {
             runner,
             redactor: Redactor::new(&security.redact_patterns),
+            env_allowlist: security.env_allowlist.clone(),
         }
     }
 
@@ -72,6 +74,18 @@ impl ProcessRunner {
         }
     }
 
+    pub fn apply_environment(&self, command: &mut Command, runtime_env: &BTreeMap<String, String>) {
+        if !self.env_allowlist.is_empty() {
+            command.env_clear();
+            for (key, value) in std::env::vars() {
+                if env_allowed(&key, &self.env_allowlist) {
+                    command.env(key, value);
+                }
+            }
+        }
+        command.envs(runtime_env);
+    }
+
     pub async fn run(&self, process: &RuntimeProcess) -> Result<ProcessOutput, ProcessError> {
         let Some((program, args)) = process.command.split_first() else {
             return Err(ProcessError::EmptyCommand);
@@ -81,11 +95,11 @@ impl ProcessRunner {
         command
             .args(args)
             .current_dir(&process.cwd)
-            .envs(&process.env)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .kill_on_drop(self.runner.kill_process_tree);
+        self.apply_environment(&mut command, &process.env);
 
         let child = command.spawn()?;
         let output = match timeout(millis(process.timeout_ms), child.wait_with_output()).await {
@@ -117,5 +131,63 @@ impl ProcessRunner {
             stderr_truncated,
             timed_out: false,
         })
+    }
+}
+
+fn env_allowed(key: &str, allowlist: &[String]) -> bool {
+    allowlist.iter().any(|entry| {
+        if let Some(prefix) = entry.strip_suffix('*') {
+            key.starts_with(prefix)
+        } else {
+            key == entry
+        }
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::discovery::manifest::SecurityConfig;
+    use std::sync::Mutex;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    #[tokio::test]
+    async fn env_allowlist_filters_inherited_env_but_keeps_runtime_env() {
+        {
+            let _guard = ENV_LOCK.lock().expect("env lock");
+            std::env::set_var("REWRIT_ALLOWLISTED_TEST_ENV", "allowed");
+            std::env::set_var("REWRIT_BLOCKED_TEST_ENV", "blocked");
+        }
+
+        let runner = ProcessRunner::new(
+            RunnerConfig::default(),
+            &SecurityConfig {
+                env_allowlist: vec!["REWRIT_ALLOWLISTED_*".to_string()],
+                ..SecurityConfig::default()
+            },
+        );
+        let process = RuntimeProcess {
+            command: vec!["/usr/bin/env".to_string()],
+            cwd: std::env::current_dir().expect("cwd"),
+            env: BTreeMap::from([("REWRIT_RUNTIME_TEST_ENV".to_string(), "runtime".to_string())]),
+            timeout_ms: 30_000,
+            max_stdout_bytes: 1_048_576,
+            max_stderr_bytes: 1_048_576,
+        };
+
+        let output = runner.run(&process).await.expect("run");
+
+        assert!(output
+            .stdout
+            .contains("REWRIT_ALLOWLISTED_TEST_ENV=allowed"));
+        assert!(output.stdout.contains("REWRIT_RUNTIME_TEST_ENV=runtime"));
+        assert!(!output.stdout.contains("REWRIT_BLOCKED_TEST_ENV=blocked"));
+
+        {
+            let _guard = ENV_LOCK.lock().expect("env lock");
+            std::env::remove_var("REWRIT_ALLOWLISTED_TEST_ENV");
+            std::env::remove_var("REWRIT_BLOCKED_TEST_ENV");
+        }
     }
 }
