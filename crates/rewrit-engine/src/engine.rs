@@ -904,8 +904,12 @@ impl Engine {
                         .or(config.replacement.clone())
                         .unwrap_or_else(|| "<PROJECT_ROOT>".to_string()),
                 })),
-                "uuid" => normalizers.push(Box::new(RegexNormalizer::uuid())),
-                "timestamp" => normalizers.push(Box::new(timestamp_normalizer())),
+                "uuid" => normalizers.push(Box::new(
+                    RegexNormalizer::uuid().with_paths(config.paths.clone()),
+                )),
+                "timestamp" => normalizers.push(Box::new(
+                    timestamp_normalizer().with_paths(config.paths.clone()),
+                )),
                 "regex" => {
                     if let (Some(pattern), Some(replacement)) =
                         (&config.pattern, &config.replacement)
@@ -913,7 +917,7 @@ impl Engine {
                         if let Ok(normalizer) =
                             RegexNormalizer::new("regex", pattern, replacement.clone())
                         {
-                            normalizers.push(Box::new(normalizer));
+                            normalizers.push(Box::new(normalizer.with_paths(config.paths.clone())));
                         }
                     }
                 }

@@ -1,14 +1,19 @@
 # Rewrit Project Plan
 
 This file is the implementation checklist for the full Rewrit architecture. The
+
 README explains the product; this file tracks the build scope until every item
+
 from the original architecture plan is implemented and tested.
 
 ## Architecture Thesis
 
 Rewrit is a Rust parity engine that compares canonical observations, not
+
 framework internals. The core must stay hexagonal and must not know Laravel,
+
 Pest, Vitest, Django, Encore, Pytest, Cargo test, PHP, Node, Python, or Rust
+
 runtime details.
 
 Pipeline:
@@ -33,9 +38,11 @@ runtime/framework specific code
 - [x] Use `reference` and `candidate`, never `legacy`/`new`, in internal APIs.
 - [x] Define stable IDs for cases, suites, runtimes, and adapters.
 - [x] Implement `Case`, `Contract`, `Observation`, `CanonicalValue`,
+
   `CanonicalError`, `Effect`, `Divergence`, and `Report`.
 - [x] Preserve `Null` vs `Absent`.
 - [x] Model money as decimal/string capable values; do not treat float money as
+
   equivalent by default.
 - [x] Use `#[non_exhaustive]` on public enums that must evolve safely.
 
@@ -51,13 +58,15 @@ runtime/framework specific code
 
 - [x] Implement pure normalizer/comparator/policy/waiver boundaries.
 - [x] Implement path, regex/uuid, timestamp, ordering, HTTP header, and PHP
+
   array normalizer hooks.
 - [x] Classify JSON/canonical divergences by path with `type_mismatch` where
+
   type differs.
 - [x] Honor configured JSON `ignore_paths`.
 - [x] Honor ignored HTTP headers.
 - [x] Keep waivers visible and make expired waivers blocking.
-- [ ] Implement path-scoped normalizer application for configured paths.
+- [x] Implement path-scoped normalizer application for configured paths.
 - [ ] Implement JSON unordered array paths.
 - [ ] Implement DB delta field/table mapping in comparison.
 - [ ] Implement queue/event/file/cache/email/log comparators.
@@ -79,6 +88,7 @@ runtime/framework specific code
 - [ ] Add global cancellation/timeout handling.
 - [x] Add lock files to prevent concurrent writes to the same store.
 - [x] Validate contract expectations against observations and report
+
   `schema_mismatch`.
 
 ### 5. Reports
@@ -122,7 +132,7 @@ runtime/framework specific code
 - [ ] Laravel helpers for HTTP response and DB deltas.
 - [ ] Vitest reporter and `test.rewrit`.
 - [ ] Jest reporter.
-- [ ] Encore helper.
+- [ ] Encore helper(you will need to search about [encore.dev](http://encore.dev) ! its a runtime dont have .env and some props).
 - [ ] Pytest plugin collection hooks.
 - [ ] Django helpers.
 - [ ] Rust cargo-test adapter and explicit helper.
@@ -195,6 +205,7 @@ Acceptance:
 - [x] Detect type mismatch in body JSON.
 - [x] Validate JSON Schema expectations and classify `schema_mismatch`.
 - [x] Detect status mismatch from contract expectation even if reference and
+
   candidate agree on the wrong status.
 
 ### MVP 3: Laravel To Encore
@@ -202,6 +213,7 @@ Acceptance:
 Acceptance:
 
 - [ ] `rewrit init --template laravel-to-encore` creates a working project
+
   template with SDK instructions.
 - [ ] PHP SDK emits Pest/PHPUnit/Laravel observations.
 - [ ] Node SDK emits Vitest/Jest/Encore observations.
@@ -224,6 +236,7 @@ Acceptance:
 ## Anti-Patterns To Keep Out
 
 - Core knowing Laravel, Django, Vitest, Pest, Encore, Pytest, PHP, Node, Python,
+
   or Rust-specific test behavior.
 - Parsing human stdout as the contract.
 - Raw string comparison as the default behavioral model.
