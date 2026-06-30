@@ -100,7 +100,7 @@ runtime/framework specific code
 - [x] SARIF report.
 - [x] HTML report.
 - [x] Markdown report.
-- [ ] Add richer minimal reproduction commands per divergence.
+- [x] Add richer minimal reproduction commands per divergence.
 - [ ] Add suite rollups and worst-suite sorting from real suite metadata.
 - [x] Add report snapshots.
 

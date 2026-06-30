@@ -3,6 +3,7 @@ use crate::ids::CaseId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -35,6 +36,16 @@ pub enum DivergenceKind {
     WaiverExpired,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct MinimalReproduction {
+    pub command: String,
+    #[serde(default)]
+    pub args: Vec<String>,
+    pub cwd: Option<String>,
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub env: BTreeMap<String, String>,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Divergence {
     pub kind: DivergenceKind,
@@ -52,4 +63,6 @@ pub struct Divergence {
     #[serde(default)]
     pub normalizers_applied: Vec<String>,
     pub hint: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub minimal_reproduction: Option<MinimalReproduction>,
 }

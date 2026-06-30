@@ -17,7 +17,8 @@ use rewrit_core::policy::{Policy, PolicyEngine, Waiver, WaiverSet};
 use rewrit_core::{CompareContext, StrictComparator};
 use rewrit_model::{
     CapturedText, Case, CaseId, CaseStatus, Contract, ContractRef, Divergence, DivergenceKind,
-    Observation, Report, ReportSummary, RuntimeId, Severity, SourceLocation, SuiteId,
+    MinimalReproduction, Observation, Report, ReportSummary, RuntimeId, Severity, SourceLocation,
+    SuiteId,
 };
 use rewrit_protocol::{
     decode_events, encode_request_line, AdapterCommand, AdapterEvent, AdapterRequest,
@@ -1052,8 +1053,57 @@ impl Engine {
             policy_trace: Vec::new(),
             metadata: BTreeMap::from([("command".to_string(), command.to_string())]),
         };
+        self.attach_minimal_reproductions(command, &mut report.divergences);
         report.summary.exit_code = exit_code_for_report(&report);
         report
+    }
+
+    fn attach_minimal_reproductions(&self, command: &str, divergences: &mut [Divergence]) {
+        for divergence in divergences {
+            if divergence.minimal_reproduction.is_none() {
+                divergence.minimal_reproduction =
+                    Some(self.minimal_reproduction(command, &divergence.case_id));
+            }
+        }
+    }
+
+    fn minimal_reproduction(&self, command: &str, case_id: &CaseId) -> MinimalReproduction {
+        let manifest_path = self.options.manifest_path.display().to_string();
+        let args = match command {
+            "audit" => vec!["audit".to_string(), "--manifest".to_string(), manifest_path],
+            "doctor" => vec![
+                "doctor".to_string(),
+                "--manifest".to_string(),
+                manifest_path,
+            ],
+            "capture" => vec![
+                "capture".to_string(),
+                "--manifest".to_string(),
+                manifest_path,
+                "--runtime".to_string(),
+                self.manifest.project.reference.to_string(),
+            ],
+            "verify" => vec![
+                "verify".to_string(),
+                "--manifest".to_string(),
+                manifest_path,
+                "--runtime".to_string(),
+                self.manifest.project.candidate.to_string(),
+            ],
+            _ => vec![
+                "explain".to_string(),
+                "--manifest".to_string(),
+                manifest_path,
+                case_id.to_string(),
+            ],
+        };
+
+        MinimalReproduction {
+            command: "rewrit".to_string(),
+            args,
+            cwd: Some(self.options.root.display().to_string()),
+            env: BTreeMap::new(),
+        }
     }
 
     fn write_configured_reports(&self, report: &Report) -> Result<(), EngineError> {
@@ -1502,6 +1552,7 @@ where
         policy: Some("contract".to_string()),
         normalizers_applied: Vec::new(),
         hint: Some("Align the runtime response with the declared contract.".to_string()),
+        minimal_reproduction: None,
     }
 }
 
@@ -1572,6 +1623,7 @@ fn case_divergence(
         policy: Some("audit".to_string()),
         normalizers_applied: Vec::new(),
         hint: None,
+        minimal_reproduction: None,
     }
 }
 

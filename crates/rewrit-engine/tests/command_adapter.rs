@@ -60,6 +60,17 @@ timeout_ms = 30000
             && divergence.severity == Severity::Blocking
             && divergence.path.as_deref() == Some("$.value.amount")
     }));
+    let reproduction = report
+        .divergences
+        .iter()
+        .find(|divergence| divergence.kind == DivergenceKind::TypeMismatch)
+        .and_then(|divergence| divergence.minimal_reproduction.as_ref())
+        .expect("minimal reproduction");
+    assert_eq!(reproduction.command, "rewrit");
+    assert_eq!(reproduction.args[0], "explain");
+    assert!(reproduction
+        .args
+        .contains(&"billing.invoice.create.success".to_string()));
 }
 
 #[tokio::test]

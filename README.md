@@ -518,7 +518,7 @@ Each blocking divergence should include enough context to locate and fix it:
 - JSON path
 - applied policy
 - applied normalizers
-- minimal reproduction
+- minimal reproduction as structured `command`, `args`, `cwd`, and optional `env`
 - suggested next action
 
 The library does not need to use AI. It should produce clean evidence that AI

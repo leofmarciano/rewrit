@@ -84,6 +84,7 @@ fn sample_report() -> Report {
             policy: Some("strict".to_string()),
             normalizers_applied: Vec::new(),
             hint: Some("Return amount as a decimal string.".to_string()),
+            minimal_reproduction: None,
         }],
         normalizers_applied: Vec::new(),
         policy_trace: Vec::new(),

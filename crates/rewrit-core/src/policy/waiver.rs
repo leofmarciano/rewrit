@@ -93,6 +93,7 @@ mod tests {
             policy: None,
             normalizers_applied: Vec::new(),
             hint: None,
+            minimal_reproduction: None,
         }]);
 
         assert_eq!(divergences[0].kind, DivergenceKind::WaiverExpired);

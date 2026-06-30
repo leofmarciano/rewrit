@@ -1,4 +1,5 @@
 use rewrit_engine::ExplainResult;
+use rewrit_model::MinimalReproduction;
 
 pub fn print(result: ExplainResult) {
     println!("Case: {}", result.case_id);
@@ -31,5 +32,27 @@ pub fn print(result: ExplainResult) {
         if let Some(hint) = divergence.hint {
             println!("\nHint: {hint}");
         }
+        if let Some(reproduction) = divergence.minimal_reproduction {
+            println!("\nReproduce:\n  {}", shell_command(&reproduction));
+        }
+    }
+}
+
+fn shell_command(reproduction: &MinimalReproduction) -> String {
+    std::iter::once(reproduction.command.as_str())
+        .chain(reproduction.args.iter().map(String::as_str))
+        .map(shell_quote)
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn shell_quote(value: &str) -> String {
+    if value
+        .chars()
+        .all(|ch| ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.' | '/' | ':' | '='))
+    {
+        value.to_string()
+    } else {
+        format!("'{}'", value.replace('\'', "'\\''"))
     }
 }

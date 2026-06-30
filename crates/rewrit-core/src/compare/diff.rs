@@ -31,6 +31,7 @@ where
         policy: Some(ctx.policy.name.clone()),
         normalizers_applied: ctx.normalizers_applied.clone(),
         hint: None,
+        minimal_reproduction: None,
     }
 }
 

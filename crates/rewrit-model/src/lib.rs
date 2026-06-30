@@ -18,7 +18,7 @@ pub mod value;
 
 pub use case::{Case, ContractRef, SourceLocation};
 pub use contract::{Contract, ContractExpectation, ContractInput};
-pub use divergence::{Divergence, DivergenceKind, Severity};
+pub use divergence::{Divergence, DivergenceKind, MinimalReproduction, Severity};
 pub use effect::*;
 pub use error::{CanonicalError, ErrorKind, StackFrame};
 pub use ids::{AdapterId, CaseId, RuntimeId, SuiteId};
