@@ -58,3 +58,39 @@ fn is_expired(expires: &str) -> bool {
     expires < today.as_str()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::{Waiver, WaiverSet};
+    use rewrit_model::{CaseId, Divergence, DivergenceKind, Severity};
+
+    #[test]
+    fn expired_waiver_blocks() {
+        let waiver_set = WaiverSet::new(vec![Waiver {
+            case: CaseId::new("billing.invoice.cancel.refund_event"),
+            kind: DivergenceKind::SideEffectMismatch,
+            reason: "not migrated".to_string(),
+            owner: "billing-platform".to_string(),
+            expires: "2000-01-01".to_string(),
+            issue: None,
+        }]);
+        let divergences = waiver_set.apply(vec![Divergence {
+            kind: DivergenceKind::SideEffectMismatch,
+            severity: Severity::Blocking,
+            case_id: CaseId::new("billing.invoice.cancel.refund_event"),
+            suite: None,
+            path: None,
+            reference: None,
+            candidate: None,
+            message: "side effects differ".to_string(),
+            machine_code: "side_effect_mismatch".to_string(),
+            source_location: None,
+            target_location: None,
+            policy: None,
+            normalizers_applied: Vec::new(),
+            hint: None,
+        }]);
+
+        assert_eq!(divergences[0].kind, DivergenceKind::WaiverExpired);
+        assert_eq!(divergences[0].severity, Severity::Blocking);
+    }
+}

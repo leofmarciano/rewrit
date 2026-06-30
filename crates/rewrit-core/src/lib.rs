@@ -10,6 +10,7 @@ pub mod policy;
 pub mod validate;
 
 pub use compare::{Comparator, Comparison, CompareContext, StrictComparator};
-pub use normalize::{NormalizeContext, NormalizeError, NormalizationPipeline, NormalizationResult, Normalizer};
+pub use normalize::{
+    NormalizeContext, NormalizeError, NormalizationPipeline, NormalizationResult, Normalizer,
+};
 pub use policy::{Policy, PolicyEngine, Waiver, WaiverSet};
-

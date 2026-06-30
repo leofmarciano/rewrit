@@ -7,4 +7,3 @@ pub fn default_severity(kind: &DivergenceKind) -> Severity {
         _ => Severity::Blocking,
     }
 }
-

@@ -1,0 +1,22 @@
+[project]
+name = "php-to-node-monolith"
+reference = "reference_php"
+candidate = "candidate_node"
+contracts_dir = "contracts"
+baselines_dir = ".rewrit/baselines"
+reports_dir = ".rewrit/reports"
+
+[runtimes.reference_php]
+adapter = "command"
+command = ["php", "vendor/bin/phpunit", "--rewrit"]
+timeout_ms = 30000
+
+[runtimes.candidate_node]
+adapter = "command"
+command = ["npm", "run", "test:rewrit"]
+timeout_ms = 30000
+
+[[reports]]
+kind = "json"
+path = ".rewrit/reports/latest.json"
+

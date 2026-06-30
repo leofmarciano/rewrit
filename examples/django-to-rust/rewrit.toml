@@ -1,0 +1,25 @@
+[project]
+name = "django-to-rust"
+reference = "reference_django"
+candidate = "candidate_rust"
+contracts_dir = "contracts"
+baselines_dir = ".rewrit/baselines"
+reports_dir = ".rewrit/reports"
+
+[runtimes.reference_django]
+adapter = "command"
+command = ["pytest", "--rewrit"]
+timeout_ms = 30000
+
+[runtimes.candidate_rust]
+adapter = "command"
+command = ["cargo", "test", "--", "--rewrit"]
+timeout_ms = 30000
+
+[[reports]]
+kind = "terminal"
+
+[[reports]]
+kind = "json"
+path = ".rewrit/reports/latest.json"
+

@@ -77,6 +77,6 @@ fn kind_name(kind: &DivergenceKind) -> &'static str {
         DivergenceKind::InfraError => "infra_error",
         DivergenceKind::PolicyAllowed => "policy_allowed",
         DivergenceKind::WaiverExpired => "waiver_expired",
+        _ => "unknown",
     }
 }
-

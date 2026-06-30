@@ -60,3 +60,14 @@ pub fn decode_events(input: &str) -> Result<Vec<AdapterEvent>, ProtocolError> {
         .collect()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::decode_events;
+
+    #[test]
+    fn decodes_observation_event() {
+        let input = r#"{"schema_version":"rewrit.event.v1","kind":"observation","case_id":"case.one","runtime_id":"reference","status":"passed","value":null,"error":null,"stdout":{"text":"","truncated":false},"stderr":{"text":"","truncated":false},"exit_code":0,"duration_ms":1,"effects":[],"artifacts":[],"metadata":{}}"#;
+        let events = decode_events(input).unwrap();
+        assert_eq!(events.len(), 1);
+    }
+}

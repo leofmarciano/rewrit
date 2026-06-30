@@ -91,11 +91,45 @@ pub struct PolicyEngine {
     pub policy: Policy,
 }
 
+#[cfg(test)]
+mod tests {
+    use super::Policy;
+    use rewrit_model::CanonicalValue;
+
+    #[test]
+    fn treats_null_and_absent_as_different_by_default() {
+        let policy = Policy::default();
+        assert!(!policy.values_equivalent(&CanonicalValue::Null, &CanonicalValue::Absent));
+    }
+
+    #[test]
+    fn allows_null_absent_only_when_policy_says_so() {
+        let policy = Policy {
+            allow_null_absent_equivalence: true,
+            ..Policy::default()
+        };
+        assert!(policy.values_equivalent(&CanonicalValue::Null, &CanonicalValue::Absent));
+    }
+
+    #[test]
+    fn detects_decimal_string_vs_float_mismatch_by_default() {
+        let policy = Policy::default();
+        assert!(!policy.values_equivalent(
+            &CanonicalValue::Decimal {
+                value: "199.90".to_string()
+            },
+            &CanonicalValue::Float {
+                value: "199.9".to_string()
+            }
+        ));
+    }
+}
+
 impl Default for PolicyEngine {
     fn default() -> Self {
         Self {
             normalizers: NormalizationPipeline::default(),
-            comparator: Box::<StrictComparator>::default(),
+            comparator: Box::new(StrictComparator),
             waivers: WaiverSet::default(),
             policy: Policy::default(),
         }
@@ -126,4 +160,3 @@ impl PolicyEngine {
         comparison
     }
 }
-

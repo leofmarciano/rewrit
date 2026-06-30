@@ -1,0 +1,10 @@
+[project]
+name = "rewrit-pytest"
+version = "0.1.0"
+description = "Python SDK and pytest plugin for emitting Rewrit observations."
+requires-python = ">=3.10"
+license = { text = "MIT OR Apache-2.0" }
+
+[project.entry-points.pytest11]
+rewrit = "rewrit_pytest.plugin"
+

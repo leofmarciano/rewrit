@@ -1,0 +1,14 @@
+{
+  "name": "@rewrit/node",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT OR Apache-2.0",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./vitest-reporter": "./src/vitest-reporter.ts",
+    "./jest-reporter": "./src/jest-reporter.ts",
+    "./encore": "./src/encore.ts"
+  }
+}
+

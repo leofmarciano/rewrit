@@ -1,0 +1,22 @@
+[project]
+name = "http-to-http"
+reference = "reference_http"
+candidate = "candidate_http"
+contracts_dir = "contracts"
+baselines_dir = ".rewrit/baselines"
+reports_dir = ".rewrit/reports"
+
+[runtimes.reference_http]
+adapter = "http"
+command = []
+timeout_ms = 30000
+
+[runtimes.candidate_http]
+adapter = "http"
+command = []
+timeout_ms = 30000
+
+[[reports]]
+kind = "json"
+path = ".rewrit/reports/latest.json"
+

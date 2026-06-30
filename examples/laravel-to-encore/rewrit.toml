@@ -1,0 +1,58 @@
+[project]
+name = "laravel-to-encore"
+reference = "legacy_laravel"
+candidate = "encore_ts"
+contracts_dir = "contracts"
+baselines_dir = ".rewrit/baselines"
+reports_dir = ".rewrit/reports"
+
+[runtimes.legacy_laravel]
+adapter = "command"
+cwd = "../legacy"
+command = ["vendor/bin/pest", "--rewrit"]
+timeout_ms = 30000
+
+[runtimes.legacy_laravel.env]
+APP_ENV = "testing"
+CACHE_DRIVER = "array"
+QUEUE_CONNECTION = "sync"
+
+[runtimes.encore_ts]
+adapter = "command"
+cwd = "../candidate"
+command = ["npm", "run", "test:rewrit"]
+timeout_ms = 30000
+
+[runtimes.encore_ts.env]
+NODE_ENV = "test"
+
+[[suites]]
+id = "billing"
+title = "Billing domain"
+source_glob = "tests/Feature/Billing/**/*.php"
+policy = "http_api_strict"
+required = true
+
+[policies.http_api_strict]
+compare_stdout = false
+compare_stderr = false
+compare_exit_code = true
+decimal_as_string = true
+
+[policies.http_api_strict.headers]
+ignore = ["date", "x-request-id", "server"]
+
+[policies.http_api_strict.json]
+ignore_paths = ["$.generated_at", "$.trace_id"]
+
+[[reports]]
+kind = "terminal"
+
+[[reports]]
+kind = "json"
+path = ".rewrit/reports/latest.json"
+
+[[reports]]
+kind = "junit"
+path = ".rewrit/reports/junit.xml"
+

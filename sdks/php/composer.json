@@ -1,0 +1,15 @@
+{
+  "name": "rewrit/rewrit",
+  "description": "PHP SDK for emitting Rewrit observations from Pest, PHPUnit and Laravel tests.",
+  "type": "library",
+  "license": "MIT OR Apache-2.0",
+  "autoload": {
+    "psr-4": {
+      "Rewrit\\": "src/"
+    }
+  },
+  "require": {
+    "php": ">=8.2"
+  }
+}
+

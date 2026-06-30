@@ -1,0 +1,28 @@
+[project]
+name = "command-to-command"
+reference = "reference"
+candidate = "candidate"
+contracts_dir = "contracts"
+baselines_dir = ".rewrit/baselines"
+reports_dir = ".rewrit/reports"
+
+[runtimes.reference]
+adapter = "command"
+command = ["./reference.sh"]
+timeout_ms = 30000
+
+[runtimes.candidate]
+adapter = "command"
+command = ["./candidate.sh"]
+timeout_ms = 30000
+
+[[normalizers]]
+kind = "uuid"
+
+[[reports]]
+kind = "terminal"
+
+[[reports]]
+kind = "json"
+path = ".rewrit/reports/latest.json"
+
