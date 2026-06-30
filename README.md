@@ -451,6 +451,15 @@ Rewrit models side effects such as:
 Different schemas can be compared through explicit mapping, so the candidate
 database does not need to be a copy of the reference database.
 
+```toml
+[effects.db.maps.invoices]
+target_table = "billing_invoices"
+
+[effects.db.maps.invoices.fields]
+id = "invoice_id"
+amount = "total_amount"
+```
+
 ## Policies, Normalizers, and Waivers
 
 Policies define what counts as a real difference.

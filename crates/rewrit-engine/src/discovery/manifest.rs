@@ -1,5 +1,5 @@
 use crate::discovery::binding::BindingConfig;
-use rewrit_model::{RuntimeId, SuiteId};
+use rewrit_model::{DbMap, RuntimeId, SuiteId};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -24,6 +24,8 @@ pub struct Manifest {
     pub security: SecurityConfig,
     #[serde(default)]
     pub runner: RunnerConfig,
+    #[serde(default)]
+    pub effects: EffectsConfig,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -102,6 +104,18 @@ pub struct JsonPolicyConfig {
     pub unordered_paths: Vec<String>,
     #[serde(default)]
     pub ignore_paths: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct EffectsConfig {
+    #[serde(default)]
+    pub db: DbEffectsConfig,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DbEffectsConfig {
+    #[serde(default)]
+    pub maps: BTreeMap<String, DbMap>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

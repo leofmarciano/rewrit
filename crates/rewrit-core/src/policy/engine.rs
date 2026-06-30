@@ -1,7 +1,8 @@
 use crate::compare::{Comparator, CompareContext, Comparison, StrictComparator};
 use crate::normalize::{NormalizationPipeline, NormalizationResult, NormalizeContext};
 use crate::policy::WaiverSet;
-use rewrit_model::{CanonicalValue, Observation};
+use rewrit_model::{CanonicalValue, DbMap, Observation};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone)]
 pub struct Policy {
@@ -21,6 +22,7 @@ pub struct Policy {
     pub ignore_paths: Vec<String>,
     pub unordered_paths: Vec<String>,
     pub ignored_headers: Vec<String>,
+    pub db_maps: BTreeMap<String, DbMap>,
 }
 
 impl Default for Policy {
@@ -46,6 +48,7 @@ impl Default for Policy {
                 "server".to_string(),
                 "x-request-id".to_string(),
             ],
+            db_maps: BTreeMap::new(),
         }
     }
 }

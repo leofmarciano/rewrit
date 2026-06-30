@@ -953,6 +953,7 @@ impl Engine {
             policy.name = name.clone();
             apply_policy_config(&mut policy, config);
         }
+        policy.db_maps = self.manifest.effects.db.maps.clone();
         policy
     }
 }

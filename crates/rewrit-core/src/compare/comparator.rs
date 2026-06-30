@@ -1,4 +1,5 @@
 use crate::compare::diff::{divergence, value_divergences};
+use crate::compare::effects::effects_equivalent;
 use crate::compare::error::errors_equivalent;
 use crate::policy::Policy;
 use rewrit_model::{CaseId, Divergence, DivergenceKind, Observation, Severity, SourceLocation};
@@ -115,7 +116,7 @@ impl Comparator for StrictComparator {
             ));
         }
 
-        if reference.effects != candidate.effects {
+        if !effects_equivalent(&reference.effects, &candidate.effects, &ctx.policy) {
             divergences.push(divergence(
                 DivergenceKind::SideEffectMismatch,
                 reference.case_id.clone(),
