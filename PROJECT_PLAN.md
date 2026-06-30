@@ -102,7 +102,7 @@ runtime/framework specific code
 - [x] Markdown report.
 - [ ] Add richer minimal reproduction commands per divergence.
 - [ ] Add suite rollups and worst-suite sorting from real suite metadata.
-- [ ] Add report snapshots.
+- [x] Add report snapshots.
 
 ### 6. CLI
 
@@ -178,8 +178,8 @@ runtime/framework specific code
 - [x] `cargo doc --workspace --all-features --no-deps`
 - [x] Command adapter integration test.
 - [x] HTTP adapter integration test.
-- [ ] Snapshot tests for report formats.
-- [ ] Property tests for core invariants.
+- [x] Snapshot tests for report formats.
+- [x] Property tests for core invariants.
 - [ ] E2E fixtures for PHP/Node/Python/Rust SDKs.
 
 ## Milestones
