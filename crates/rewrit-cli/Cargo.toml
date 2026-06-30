@@ -1,0 +1,26 @@
+[package]
+name = "rewrit-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "rewrit"
+path = "src/main.rs"
+
+[dependencies]
+clap.workspace = true
+miette.workspace = true
+rewrit-engine.workspace = true
+rewrit-model.workspace = true
+rewrit-report.workspace = true
+schemars.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+

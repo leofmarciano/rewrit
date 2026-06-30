@@ -1,0 +1,58 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/rewrit-model",
+  "crates/rewrit-core",
+  "crates/rewrit-engine",
+  "crates/rewrit-protocol",
+  "crates/rewrit-report",
+  "crates/rewrit-cli",
+  "crates/rewrit-adapter-command",
+  "crates/rewrit-adapter-http",
+  "crates/rewrit-adapter-php",
+  "crates/rewrit-adapter-node",
+  "crates/rewrit-adapter-python",
+  "crates/rewrit-adapter-rust",
+  "sdks/rust",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rewrit/rewrit"
+homepage = "https://github.com/rewrit/rewrit"
+description = "Parity engine for validating observable behavior during rewrites."
+rust-version = "1.80"
+
+[workspace.dependencies]
+rewrit-model = { path = "crates/rewrit-model" }
+rewrit-core = { path = "crates/rewrit-core" }
+rewrit-engine = { path = "crates/rewrit-engine" }
+rewrit-protocol = { path = "crates/rewrit-protocol" }
+rewrit-report = { path = "crates/rewrit-report" }
+
+base64 = "0.22"
+camino = { version = "1", features = ["serde1"] }
+clap = { version = "4", features = ["derive"] }
+futures = "0.3"
+globset = "0.4"
+ignore = "0.4"
+indexmap = { version = "2", features = ["serde"] }
+miette = { version = "7", features = ["fancy"] }
+regex = "1"
+reqwest = { version = "0.12", features = ["json"] }
+schemars = { version = "1", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+similar = "2"
+tempfile = "3"
+thiserror = "2"
+time = { version = "0.3", features = ["serde"] }
+tokio = { version = "1", features = ["process", "macros", "rt-multi-thread", "time", "fs", "io-util", "signal"] }
+toml = "0.8"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+uuid = { version = "1", features = ["v7", "serde"] }
+
