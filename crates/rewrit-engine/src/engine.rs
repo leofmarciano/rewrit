@@ -436,7 +436,7 @@ impl Engine {
             .get(runtime_id)
             .ok_or_else(|| EngineError::RuntimeNotFound(runtime_id.clone()))?;
 
-        if runtime.adapter != "command" && !runtime.adapter.starts_with("command") {
+        if !is_command_protocol_adapter(&runtime.adapter) {
             if runtime.adapter == "http" || runtime.adapter.starts_with("http:") {
                 return self.run_http_runtime(runtime_id, runtime, None).await;
             }
@@ -1758,6 +1758,13 @@ fn adapter_command_name(command: AdapterCommand) -> &'static str {
         AdapterCommand::Discover => "discover",
         AdapterCommand::Run => "run",
     }
+}
+
+fn is_command_protocol_adapter(adapter: &str) -> bool {
+    adapter == "command"
+        || adapter.starts_with("command:")
+        || adapter == "rust:cargo_test"
+        || adapter.starts_with("rust:cargo_test:")
 }
 
 fn protocol_input_name(input: AdapterProtocolInput) -> &'static str {

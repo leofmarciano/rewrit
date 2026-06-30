@@ -135,7 +135,7 @@ runtime/framework specific code
 - [x] Encore helper(you will need to search about [encore.dev](http://encore.dev) ! its a runtime dont have .env and some props).
 - [x] Pytest plugin collection hooks.
 - [x] Django helpers.
-- [ ] Rust cargo-test adapter and explicit helper.
+- [x] Rust cargo-test adapter and explicit helper.
 - [ ] Rust `#[rewrit::case]` macro.
 
 ### 8. Operation Modes

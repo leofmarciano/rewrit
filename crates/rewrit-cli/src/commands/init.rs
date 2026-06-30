@@ -106,8 +106,8 @@ command = ["pytest", "--rewrit"]
 timeout_ms = 30000
 
 [runtimes.candidate_rust]
-adapter = "command"
-command = ["cargo", "test", "--", "--rewrit"]
+adapter = "rust:cargo_test"
+command = ["cargo", "test", "--", "--nocapture"]
 timeout_ms = 30000
 
 [[reports]]

@@ -1277,6 +1277,7 @@ version = "0.1.0"
 dependencies = [
  "rewrit-model",
  "rewrit-protocol",
+ "serde",
  "serde_json",
 ]
 
