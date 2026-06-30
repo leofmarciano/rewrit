@@ -1,4 +1,4 @@
-use crate::discovery::manifest::{RunnerConfig, RuntimeConfig, SecurityConfig};
+use crate::discovery::manifest::{NetworkMode, RunnerConfig, RuntimeConfig, SecurityConfig};
 use crate::runner::env::{truncate, Redactor};
 use crate::runner::timeout::millis;
 use std::collections::BTreeMap;
@@ -44,6 +44,7 @@ pub struct ProcessRunner {
     runner: RunnerConfig,
     redactor: Redactor,
     env_allowlist: Vec<String>,
+    network_mode: NetworkMode,
 }
 
 impl ProcessRunner {
@@ -53,6 +54,7 @@ impl ProcessRunner {
             runner,
             redactor: Redactor::new(&security.redact_patterns),
             env_allowlist: security.env_allowlist.clone(),
+            network_mode: security.network_mode,
         }
     }
 
@@ -91,6 +93,7 @@ impl ProcessRunner {
             }
         }
         command.envs(runtime_env);
+        command.env("REWRIT_NETWORK_MODE", network_mode_name(self.network_mode));
         if let Some(temp_dir) = temp_dir {
             command
                 .env("TMPDIR", temp_dir)
@@ -160,6 +163,14 @@ fn env_allowed(key: &str, allowlist: &[String]) -> bool {
     })
 }
 
+fn network_mode_name(mode: NetworkMode) -> &'static str {
+    match mode {
+        NetworkMode::Inherit => "inherit",
+        NetworkMode::LoopbackOnly => "loopback_only",
+        NetworkMode::Disabled => "disabled",
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -199,6 +210,7 @@ mod tests {
             .stdout
             .contains("REWRIT_ALLOWLISTED_TEST_ENV=allowed"));
         assert!(output.stdout.contains("REWRIT_RUNTIME_TEST_ENV=runtime"));
+        assert!(output.stdout.contains("REWRIT_NETWORK_MODE=inherit"));
         assert!(!output.stdout.contains("REWRIT_BLOCKED_TEST_ENV=blocked"));
 
         {

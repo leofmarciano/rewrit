@@ -1,5 +1,5 @@
 use crate::discovery::manifest::{
-    Manifest as ManifestConfig, PolicyConfig, ReportConfig, RuntimeConfig,
+    Manifest as ManifestConfig, NetworkMode, PolicyConfig, ReportConfig, RuntimeConfig,
 };
 use crate::runner::process::{ProcessError, ProcessRunner};
 use crate::store::baseline;
@@ -459,6 +459,7 @@ impl Engine {
         if loaded_contracts.is_empty() {
             return Ok(RuntimeRun::default());
         }
+        self.validate_http_network(runtime_id, runtime)?;
 
         let mut server = self.start_http_server(runtime_id, runtime).await?;
         if let Some(healthcheck) = runtime
@@ -648,6 +649,35 @@ impl Engine {
                 runtime_id: runtime_id.clone(),
                 source,
             })
+    }
+
+    fn validate_http_network(
+        &self,
+        runtime_id: &RuntimeId,
+        runtime: &RuntimeConfig,
+    ) -> Result<(), EngineError> {
+        match self.manifest.security.network_mode {
+            NetworkMode::Inherit => Ok(()),
+            NetworkMode::Disabled => Err(EngineError::InvalidManifest(format!(
+                "security.network_mode=disabled cannot run built-in HTTP runtime {runtime_id}"
+            ))),
+            NetworkMode::LoopbackOnly => {
+                let Some(healthcheck) = runtime
+                    .server
+                    .as_ref()
+                    .and_then(|server| server.healthcheck.as_ref())
+                else {
+                    return Ok(());
+                };
+                if is_loopback_url(healthcheck) {
+                    Ok(())
+                } else {
+                    Err(EngineError::InvalidManifest(format!(
+                        "security.network_mode=loopback_only requires HTTP runtime {runtime_id} healthcheck to use localhost or loopback, got {healthcheck}"
+                    )))
+                }
+            }
+        }
     }
 
     fn compare_runs(&self, reference: RuntimeRun, candidate: RuntimeRun) -> Report {
@@ -1038,6 +1068,22 @@ fn http_adapter_error_observation(
         artifacts: Vec::new(),
         metadata: BTreeMap::new(),
     }
+}
+
+fn is_loopback_url(url: &str) -> bool {
+    let Some(after_scheme) = url
+        .strip_prefix("http://")
+        .or_else(|| url.strip_prefix("https://"))
+    else {
+        return false;
+    };
+    let authority = after_scheme.split('/').next().unwrap_or_default();
+    let host = if let Some(rest) = authority.strip_prefix('[') {
+        rest.split(']').next().unwrap_or_default()
+    } else {
+        authority.split(':').next().unwrap_or_default()
+    };
+    host == "localhost" || host == "::1" || host.starts_with("127.")
 }
 
 fn validate_http_contract_observation(

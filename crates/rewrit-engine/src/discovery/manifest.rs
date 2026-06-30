@@ -141,6 +141,8 @@ pub struct SecurityConfig {
     pub redact_patterns: Vec<String>,
     #[serde(default)]
     pub env_allowlist: Vec<String>,
+    #[serde(default)]
+    pub network_mode: NetworkMode,
 }
 
 impl Default for SecurityConfig {
@@ -152,8 +154,18 @@ impl Default for SecurityConfig {
                 "Bearer [A-Za-z0-9._-]+".to_string(),
             ],
             env_allowlist: Vec::new(),
+            network_mode: NetworkMode::Inherit,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum NetworkMode {
+    #[default]
+    Inherit,
+    LoopbackOnly,
+    Disabled,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

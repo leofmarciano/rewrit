@@ -686,10 +686,14 @@ Entries may be exact names or prefix patterns ending in `*`.
 ```toml
 [security]
 env_allowlist = ["PATH", "HOME", "CI", "REWRIT_*"]
+network_mode = "loopback_only"
 ```
 
 Each runtime execution also receives an isolated temp directory under
 `.rewrit/tmp` through `TMPDIR`, `TMP`, and `TEMP`.
+Built-in HTTP runtimes enforce `network_mode = "disabled"` and
+`network_mode = "loopback_only"`; command/framework adapters receive the same
+mode through `REWRIT_NETWORK_MODE`.
 
 Container sandboxing can come later. It should not block the core parity engine
 MVP.

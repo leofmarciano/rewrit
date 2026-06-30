@@ -156,7 +156,7 @@ runtime/framework specific code
 - [x] Env redaction patterns for captured output.
 - [x] Stdout/stderr byte limits.
 - [x] Env allowlist enforcement.
-- [ ] Network control configuration.
+- [x] Network control configuration.
 - [x] Temp dir isolation per run.
 - [ ] Optional Docker/Podman sandbox after MVP.
 

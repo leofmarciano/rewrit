@@ -1,4 +1,4 @@
-use rewrit_engine::{Engine, RunMode};
+use rewrit_engine::{Engine, EngineError, RunMode};
 use rewrit_model::{DivergenceKind, Severity};
 use std::fs;
 use std::net::TcpListener;
@@ -167,6 +167,63 @@ healthcheck = "http://127.0.0.1:{candidate_port}/health"
             && divergence.severity == Severity::Blocking
             && divergence.path.as_deref() == Some("$.value.body.amount")
     }));
+}
+
+#[tokio::test]
+async fn http_adapter_rejects_disabled_network_mode() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(temp.path().join("contracts")).expect("contracts dir");
+    fs::write(
+        temp.path().join("contracts/invoice.json"),
+        r#"{
+  "schema_version": "rewrit.contract.v1",
+  "id": "billing.invoice.create.success",
+  "kind": "http_case",
+  "input": { "method": "GET", "path": "/api/invoices" },
+  "expect": { "status": 200 },
+  "policy": "http_api_strict"
+}"#,
+    )
+    .expect("contract");
+    fs::write(
+        temp.path().join("rewrit.toml"),
+        r#"[project]
+name = "http-network-test"
+reference = "reference_http"
+candidate = "candidate_http"
+contracts_dir = "contracts"
+reports_dir = ".rewrit/reports"
+baselines_dir = ".rewrit/baselines"
+
+[security]
+network_mode = "disabled"
+
+[runtimes.reference_http]
+adapter = "http"
+timeout_ms = 30000
+
+[runtimes.reference_http.server]
+start = ["python3", "missing_server.py"]
+healthcheck = "http://127.0.0.1:65534/health"
+
+[runtimes.candidate_http]
+adapter = "http"
+timeout_ms = 30000
+
+[runtimes.candidate_http.server]
+start = ["python3", "missing_server.py"]
+healthcheck = "http://127.0.0.1:65535/health"
+"#,
+    )
+    .expect("manifest");
+
+    let engine = Engine::from_manifest_path(temp.path().join("rewrit.toml")).expect("engine");
+    let error = engine.run(RunMode::Mirror).await.expect_err("network mode");
+
+    assert!(matches!(
+        error,
+        EngineError::InvalidManifest(message) if message.contains("network_mode=disabled")
+    ));
 }
 
 fn free_port() -> u16 {
