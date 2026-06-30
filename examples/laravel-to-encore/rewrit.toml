@@ -8,8 +8,8 @@ reports_dir = ".rewrit/reports"
 
 [runtimes.legacy_laravel]
 adapter = "command"
-cwd = "../legacy"
-command = ["vendor/bin/pest", "--rewrit"]
+cwd = "legacy-laravel"
+command = ["php", "run.php"]
 timeout_ms = 30000
 
 [runtimes.legacy_laravel.env]
@@ -19,8 +19,8 @@ QUEUE_CONNECTION = "sync"
 
 [runtimes.encore_ts]
 adapter = "command"
-cwd = "../candidate"
-command = ["npm", "run", "test:rewrit"]
+cwd = "candidate-encore"
+command = ["node", "run.mjs"]
 timeout_ms = 30000
 
 [runtimes.encore_ts.env]
@@ -45,6 +45,16 @@ ignore = ["date", "x-request-id", "server"]
 [policies.http_api_strict.json]
 ignore_paths = ["$.generated_at", "$.trace_id"]
 
+[effects.db.maps.invoices]
+target_table = "billing_invoices"
+
+[effects.db.maps.invoices.fields]
+id = "invoice_id"
+customer_id = "customer_ref"
+amount = "total_amount"
+currency = "currency_code"
+status = "state"
+
 [[reports]]
 kind = "terminal"
 
@@ -55,4 +65,3 @@ path = ".rewrit/reports/latest.json"
 [[reports]]
 kind = "junit"
 path = ".rewrit/reports/junit.xml"
-

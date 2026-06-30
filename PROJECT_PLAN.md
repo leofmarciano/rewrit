@@ -153,7 +153,7 @@ runtime/framework specific code
 - [x] `examples/laravel-to-encore` manifest.
 - [x] `examples/django-to-rust` manifest.
 - [x] `examples/php-to-node-monolith` manifest.
-- [ ] Executable Laravel-to-Encore fixture.
+- [x] Executable Laravel-to-Encore fixture.
 - [ ] Executable Django-to-Rust fixture.
 - [ ] Executable PHP-to-Node fixture.
 

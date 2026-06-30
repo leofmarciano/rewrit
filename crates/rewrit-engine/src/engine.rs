@@ -1594,6 +1594,10 @@ fn validate_command_contract_observation(
     observation: &Observation,
     runtime_id: &RuntimeId,
 ) -> Vec<Divergence> {
+    if contract.kind == "http_case" {
+        return validate_http_contract_observation(contract, observation);
+    }
+
     let mut divergences = Vec::new();
 
     if let Some(expected) = &contract.expect.json {
