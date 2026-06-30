@@ -315,6 +315,100 @@ timeout_ms = 30000
     assert_eq!(report.summary.cases_compared, 1);
 }
 
+#[tokio::test]
+async fn command_contract_mode_passes_cases_and_validates_expected_json() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    fs::create_dir_all(temp.path().join("contracts")).expect("contracts");
+    fs::write(
+        temp.path().join("contracts/double.json"),
+        r#"{
+  "schema_version": "rewrit.contract.v1",
+  "id": "math.double.success",
+  "kind": "function_case",
+  "expect": {
+    "json": { "result": 4 }
+  }
+}
+"#,
+    )
+    .expect("contract");
+    write_executable(
+        &temp.path().join("reference.sh"),
+        r#"#!/usr/bin/env sh
+set -eu
+test "$REWRIT_CASES" = "math.double.success"
+grep -F '"cases":["math.double.success"]' "$REWRIT_REQUEST_PATH" >/dev/null
+cat > "$REWRIT_EVENTS_PATH" <<'JSON'
+{"schema_version":"rewrit.event.v1","kind":"case_discovered","runtime_id":"reference","case":{"id":"math.double.success","suite_id":"math","title":"double","source_location":null,"tags":[],"contract_ref":null,"required":true}}
+{"schema_version":"rewrit.event.v1","kind":"observation","case_id":"math.double.success","runtime_id":"reference","status":"passed","value":{"kind":"json","value":{"result":5}},"error":null,"stdout":{"text":"","truncated":false},"stderr":{"text":"","truncated":false},"exit_code":0,"duration_ms":1,"effects":[],"artifacts":[],"metadata":{}}
+JSON
+"#,
+    );
+    write_executable(
+        &temp.path().join("candidate.sh"),
+        r#"#!/usr/bin/env sh
+set -eu
+test "$REWRIT_CASES" = "math.double.success"
+grep -F '"cases":["math.double.success"]' "$REWRIT_REQUEST_PATH" >/dev/null
+cat > "$REWRIT_EVENTS_PATH" <<'JSON'
+{"schema_version":"rewrit.event.v1","kind":"case_discovered","runtime_id":"candidate","case":{"id":"math.double.success","suite_id":"math","title":"double","source_location":null,"tags":[],"contract_ref":null,"required":true}}
+{"schema_version":"rewrit.event.v1","kind":"observation","case_id":"math.double.success","runtime_id":"candidate","status":"passed","value":{"kind":"json","value":{"result":5}},"error":null,"stdout":{"text":"","truncated":false},"stderr":{"text":"","truncated":false},"exit_code":0,"duration_ms":1,"effects":[],"artifacts":[],"metadata":{}}
+JSON
+"#,
+    );
+    fs::write(
+        temp.path().join("rewrit.toml"),
+        r#"[project]
+name = "command-contract-test"
+reference = "reference"
+candidate = "candidate"
+contracts_dir = "contracts"
+reports_dir = ".rewrit/reports"
+baselines_dir = ".rewrit/baselines"
+
+[runtimes.reference]
+adapter = "command"
+command = ["./reference.sh"]
+timeout_ms = 30000
+
+[runtimes.reference.protocol]
+input = "file"
+output = "file"
+
+[runtimes.candidate]
+adapter = "command"
+command = ["./candidate.sh"]
+timeout_ms = 30000
+
+[runtimes.candidate.protocol]
+input = "file"
+output = "file"
+"#,
+    )
+    .expect("manifest");
+
+    let engine = Engine::from_manifest_path(temp.path().join("rewrit.toml")).expect("engine");
+    let report = engine
+        .verify_contracts(&["contracts/**/*.json".to_string()])
+        .await
+        .expect("verify contracts");
+
+    assert_eq!(report.summary.exit_code, 1);
+    assert_eq!(report.summary.cases_compared, 1);
+    assert!(report.divergences.iter().any(|divergence| {
+        divergence.kind == DivergenceKind::OutputMismatch
+            && divergence.policy.as_deref() == Some("contract")
+            && divergence.path.as_deref() == Some("$.value")
+            && divergence.message.contains("reference")
+    }));
+    assert!(report.divergences.iter().any(|divergence| {
+        divergence.kind == DivergenceKind::OutputMismatch
+            && divergence.policy.as_deref() == Some("contract")
+            && divergence.path.as_deref() == Some("$.value")
+            && divergence.message.contains("candidate")
+    }));
+}
+
 fn write_executable(path: &Path, contents: &str) {
     let mut file = fs::File::create(path).expect("create script");
     file.write_all(contents.as_bytes()).expect("write script");

@@ -144,7 +144,7 @@ runtime/framework specific code
 - [x] Baseline capture/verify mode.
 - [x] Contract mode for HTTP contracts.
 - [x] Audit mode for missing/orphan cases.
-- [ ] Contract mode for non-HTTP commands/jobs/functions.
+- [x] Contract mode for non-HTTP commands/jobs/functions.
 
 ### 9. Examples And Showcases
 

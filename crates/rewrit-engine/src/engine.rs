@@ -16,9 +16,9 @@ use rewrit_core::normalize::{NormalizationPipeline, NormalizeContext, Normalizer
 use rewrit_core::policy::{Policy, PolicyEngine, Waiver, WaiverSet};
 use rewrit_core::{CompareContext, StrictComparator};
 use rewrit_model::{
-    CapturedText, Case, CaseId, CaseStatus, Contract, ContractRef, Divergence, DivergenceKind,
-    MinimalReproduction, Observation, Report, ReportSummary, RuntimeId, Severity, SourceLocation,
-    SuiteId, SuiteSummary,
+    CanonicalValue, CapturedText, Case, CaseId, CaseStatus, Contract, ContractRef, Divergence,
+    DivergenceKind, MinimalReproduction, Observation, Report, ReportSummary, RuntimeId, Severity,
+    SourceLocation, SuiteId, SuiteSummary,
 };
 use rewrit_protocol::{
     decode_events, encode_request_line, AdapterCommand, AdapterEvent, AdapterRequest,
@@ -333,6 +333,10 @@ impl Engine {
             .get(&self.manifest.project.candidate)
             .ok_or_else(|| EngineError::RuntimeNotFound(self.manifest.project.candidate.clone()))?;
         let contracts = self.load_contracts(Some(contract_paths))?;
+        let contract_case_ids = contracts
+            .iter()
+            .map(|loaded| loaded.contract.id.clone())
+            .collect::<Vec<_>>();
         let reference = if reference_runtime.adapter.starts_with("http") {
             self.run_http_runtime(
                 &self.manifest.project.reference,
@@ -341,8 +345,12 @@ impl Engine {
             )
             .await?
         } else {
-            self.run_runtime(&self.manifest.project.reference, AdapterCommand::Run)
-                .await?
+            self.run_runtime_with_cases(
+                &self.manifest.project.reference,
+                AdapterCommand::Run,
+                contract_case_ids.clone(),
+            )
+            .await?
         };
         let candidate = if candidate_runtime.adapter.starts_with("http") {
             self.run_http_runtime(
@@ -352,9 +360,31 @@ impl Engine {
             )
             .await?
         } else {
-            self.run_runtime(&self.manifest.project.candidate, AdapterCommand::Run)
-                .await?
+            self.run_runtime_with_cases(
+                &self.manifest.project.candidate,
+                AdapterCommand::Run,
+                contract_case_ids,
+            )
+            .await?
         };
+        let mut reference = reference;
+        let mut candidate = candidate;
+        if !reference_runtime.adapter.starts_with("http") {
+            apply_contracts_to_command_run(
+                &contracts,
+                &self.manifest.project.reference,
+                &mut reference,
+                DivergenceKind::MissingReferenceCase,
+            );
+        }
+        if !candidate_runtime.adapter.starts_with("http") {
+            apply_contracts_to_command_run(
+                &contracts,
+                &self.manifest.project.candidate,
+                &mut candidate,
+                DivergenceKind::MissingCandidateCase,
+            );
+        }
         let report = self.compare_runs(reference, candidate);
         self.write_configured_reports(&report)?;
         Ok(report)
@@ -430,6 +460,16 @@ impl Engine {
         runtime_id: &RuntimeId,
         command: AdapterCommand,
     ) -> Result<RuntimeRun, EngineError> {
+        self.run_runtime_with_cases(runtime_id, command, Vec::new())
+            .await
+    }
+
+    async fn run_runtime_with_cases(
+        &self,
+        runtime_id: &RuntimeId,
+        command: AdapterCommand,
+        cases: Vec<CaseId>,
+    ) -> Result<RuntimeRun, EngineError> {
         let runtime = self
             .manifest
             .runtimes
@@ -443,7 +483,8 @@ impl Engine {
             return Ok(RuntimeRun::default());
         }
 
-        self.run_command_runtime(runtime_id, runtime, command).await
+        self.run_command_runtime(runtime_id, runtime, command, cases)
+            .await
     }
 
     async fn run_command_runtime(
@@ -451,6 +492,7 @@ impl Engine {
         runtime_id: &RuntimeId,
         runtime: &RuntimeConfig,
         command: AdapterCommand,
+        cases: Vec<CaseId>,
     ) -> Result<RuntimeRun, EngineError> {
         let mut process = self.runner.from_runtime(&self.options.root, runtime);
         process.temp_dir = Some(
@@ -458,7 +500,7 @@ impl Engine {
                 .create_temp_dir(&format!("runtime-{runtime_id}"))?,
         );
         let protocol_output_path =
-            self.prepare_command_protocol(&mut process, runtime_id, runtime, command)?;
+            self.prepare_command_protocol(&mut process, runtime_id, runtime, command, cases)?;
         let output =
             self.runner
                 .run(&process)
@@ -568,6 +610,7 @@ impl Engine {
         runtime_id: &RuntimeId,
         runtime: &RuntimeConfig,
         command: AdapterCommand,
+        cases: Vec<CaseId>,
     ) -> Result<Option<PathBuf>, EngineError> {
         let Some(temp_dir) = process.temp_dir.as_ref() else {
             return Err(EngineError::InvalidManifest(format!(
@@ -583,6 +626,16 @@ impl Engine {
             "REWRIT_ADAPTER_COMMAND".to_string(),
             adapter_command_name(command).to_string(),
         );
+        if !cases.is_empty() {
+            process.env.insert(
+                "REWRIT_CASES".to_string(),
+                cases
+                    .iter()
+                    .map(ToString::to_string)
+                    .collect::<Vec<_>>()
+                    .join(","),
+            );
+        }
         process.env.insert(
             "REWRIT_PROTOCOL_INPUT".to_string(),
             protocol_input_name(runtime.protocol.input).to_string(),
@@ -594,7 +647,7 @@ impl Engine {
 
         if matches!(runtime.protocol.input, AdapterProtocolInput::File) {
             let request_path = temp_dir.join("adapter-request.ndjson");
-            let request = AdapterRequest::new(command, runtime_id.clone(), Vec::new());
+            let request = AdapterRequest::new(command, runtime_id.clone(), cases);
             let encoded = encode_request_line(&request).map_err(|source| {
                 EngineError::EncodeProtocolRequest {
                     runtime_id: runtime_id.clone(),
@@ -1398,6 +1451,46 @@ fn case_from_contract(loaded: &LoadedContract) -> Case {
     }
 }
 
+fn apply_contracts_to_command_run(
+    contracts: &[LoadedContract],
+    runtime_id: &RuntimeId,
+    run: &mut RuntimeRun,
+    missing_kind: DivergenceKind,
+) {
+    let mut known_cases = run
+        .cases
+        .iter()
+        .map(|case| case.id.clone())
+        .collect::<BTreeSet<_>>();
+    for loaded in contracts {
+        if known_cases.insert(loaded.contract.id.clone()) {
+            run.cases.push(case_from_contract(loaded));
+        }
+    }
+
+    let observations = run
+        .observations
+        .iter()
+        .map(|observation| (observation.case_id.clone(), observation))
+        .collect::<BTreeMap<_, _>>();
+    for loaded in contracts {
+        match observations.get(&loaded.contract.id) {
+            Some(observation) => run
+                .divergences
+                .extend(validate_command_contract_observation(
+                    &loaded.contract,
+                    observation,
+                    runtime_id,
+                )),
+            None => run.divergences.push(contract_observation_missing(
+                &loaded.contract,
+                runtime_id,
+                missing_kind.clone(),
+            )),
+        }
+    }
+}
+
 fn http_adapter_error_observation(
     runtime_id: &RuntimeId,
     case_id: &CaseId,
@@ -1496,6 +1589,77 @@ fn validate_http_contract_observation(
     divergences
 }
 
+fn validate_command_contract_observation(
+    contract: &Contract,
+    observation: &Observation,
+    runtime_id: &RuntimeId,
+) -> Vec<Divergence> {
+    let mut divergences = Vec::new();
+
+    if let Some(expected) = &contract.expect.json {
+        match observation.value.as_ref().and_then(canonical_to_json) {
+            Some(actual) if actual == *expected => {}
+            Some(actual) => divergences.push(contract_divergence(
+                contract.id.clone(),
+                DivergenceKind::OutputMismatch,
+                "$.value",
+                format!("Runtime {runtime_id} value does not match contract expectation."),
+                Some(expected),
+                Some(&actual),
+            )),
+            None => divergences.push(contract_divergence(
+                contract.id.clone(),
+                DivergenceKind::SchemaMismatch,
+                "$.value",
+                format!("Runtime {runtime_id} observation has no JSON-compatible value."),
+                Some(expected),
+                Option::<&serde_json::Value>::None,
+            )),
+        }
+    }
+
+    if let Some(schema) = &contract.expect.json_schema {
+        match observation.value.as_ref().and_then(canonical_to_json) {
+            Some(actual) => {
+                divergences.extend(validate_json_schema(
+                    &contract.id,
+                    schema,
+                    &actual,
+                    "$.value",
+                ));
+            }
+            None => divergences.push(contract_divergence(
+                contract.id.clone(),
+                DivergenceKind::SchemaMismatch,
+                "$.value",
+                format!(
+                    "Runtime {runtime_id} observation has no JSON-compatible value for json_schema."
+                ),
+                Some(schema),
+                Option::<&serde_json::Value>::None,
+            )),
+        }
+    }
+
+    if !contract.expect.effects.is_empty() {
+        let expected = serde_json::Value::Array(contract.expect.effects.clone());
+        let actual =
+            serde_json::to_value(&observation.effects).unwrap_or_else(|_| serde_json::json!([]));
+        if actual != expected {
+            divergences.push(contract_divergence(
+                contract.id.clone(),
+                DivergenceKind::SideEffectMismatch,
+                "$.effects",
+                format!("Runtime {runtime_id} side effects do not match contract expectation."),
+                Some(&expected),
+                Some(&actual),
+            ));
+        }
+    }
+
+    divergences
+}
+
 fn http_status(value: &rewrit_model::CanonicalValue) -> Option<u16> {
     let rewrit_model::CanonicalValue::Object { fields } = value else {
         return None;
@@ -1513,6 +1677,40 @@ fn http_body_json(value: &rewrit_model::CanonicalValue) -> Option<&serde_json::V
     match fields.get("body")? {
         rewrit_model::CanonicalValue::Json { value } => Some(value),
         _ => None,
+    }
+}
+
+fn canonical_to_json(value: &CanonicalValue) -> Option<serde_json::Value> {
+    match value {
+        CanonicalValue::Null => Some(serde_json::Value::Null),
+        CanonicalValue::Absent => None,
+        CanonicalValue::Bool { value } => Some(serde_json::json!(value)),
+        CanonicalValue::Integer { value } => value
+            .parse::<i64>()
+            .map(|integer| serde_json::json!(integer))
+            .or_else(|_| {
+                value
+                    .parse::<u64>()
+                    .map(|integer| serde_json::json!(integer))
+            })
+            .ok()
+            .or_else(|| Some(serde_json::json!(value))),
+        CanonicalValue::Decimal { value }
+        | CanonicalValue::Float { value }
+        | CanonicalValue::String { value } => Some(serde_json::json!(value)),
+        CanonicalValue::Bytes { base64, .. } => Some(serde_json::json!(base64)),
+        CanonicalValue::Array { items } => items
+            .iter()
+            .map(canonical_to_json)
+            .collect::<Option<Vec<_>>>()
+            .map(serde_json::Value::Array),
+        CanonicalValue::Object { fields } => fields
+            .iter()
+            .map(|(key, value)| canonical_to_json(value).map(|value| (key.clone(), value)))
+            .collect::<Option<serde_json::Map<_, _>>>()
+            .map(serde_json::Value::Object),
+        CanonicalValue::DateTime { rfc3339 } => Some(serde_json::json!(rfc3339)),
+        CanonicalValue::Json { value } => Some(value.clone()),
     }
 }
 
@@ -1627,6 +1825,22 @@ fn json_kind(value: &serde_json::Value) -> &'static str {
         serde_json::Value::Array(_) => "array",
         serde_json::Value::Object(_) => "object",
     }
+}
+
+fn contract_observation_missing(
+    contract: &Contract,
+    runtime_id: &RuntimeId,
+    kind: DivergenceKind,
+) -> Divergence {
+    let runtime = serde_json::json!(runtime_id.to_string());
+    contract_divergence(
+        contract.id.clone(),
+        kind,
+        "$.observation",
+        format!("Runtime {runtime_id} did not emit an observation for this contract."),
+        Some(&runtime),
+        Option::<&serde_json::Value>::None,
+    )
 }
 
 fn contract_divergence<T, U>(
