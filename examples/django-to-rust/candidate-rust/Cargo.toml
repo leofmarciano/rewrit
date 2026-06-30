@@ -1,0 +1,11 @@
+[package]
+name = "rewrit-django-to-rust-candidate"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+rewrit = { path = "../../../sdks/rust" }
+serde_json = "1"

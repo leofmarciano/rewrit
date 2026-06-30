@@ -495,10 +495,11 @@ impl Engine {
         cases: Vec<CaseId>,
     ) -> Result<RuntimeRun, EngineError> {
         let mut process = self.runner.from_runtime(&self.options.root, runtime);
-        process.temp_dir = Some(
+        let temp_dir = absolute_path(
             self.store
                 .create_temp_dir(&format!("runtime-{runtime_id}"))?,
-        );
+        )?;
+        process.temp_dir = Some(temp_dir);
         let protocol_output_path =
             self.prepare_command_protocol(&mut process, runtime_id, runtime, command, cases)?;
         let output =
@@ -1433,6 +1434,14 @@ fn collect_contract_files(dir: &Path, paths: &mut Vec<PathBuf>) -> Result<(), En
 
     paths.sort();
     Ok(())
+}
+
+fn absolute_path(path: PathBuf) -> Result<PathBuf, EngineError> {
+    if path.is_absolute() {
+        Ok(path)
+    } else {
+        Ok(std::env::current_dir()?.join(path))
+    }
 }
 
 fn case_from_contract(loaded: &LoadedContract) -> Case {

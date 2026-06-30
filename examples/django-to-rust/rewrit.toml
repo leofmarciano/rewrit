@@ -8,13 +8,21 @@ reports_dir = ".rewrit/reports"
 
 [runtimes.reference_django]
 adapter = "command"
-command = ["pytest", "--rewrit"]
+cwd = "reference-django"
+command = ["python3", "run.py"]
 timeout_ms = 30000
+
+[runtimes.reference_django.protocol]
+output = "file"
 
 [runtimes.candidate_rust]
 adapter = "rust:cargo_test"
+cwd = "candidate-rust"
 command = ["cargo", "test", "--", "--nocapture"]
 timeout_ms = 30000
+
+[runtimes.candidate_rust.protocol]
+output = "file"
 
 [[reports]]
 kind = "terminal"

@@ -1,0 +1,27 @@
+{
+  "schema_version": "rewrit.contract.v1",
+  "id": "billing.invoice.create.success",
+  "kind": "http_case",
+  "input": {
+    "method": "POST",
+    "path": "/api/invoices",
+    "json": {
+      "customer_id": "cus_123",
+      "amount": "199.90",
+      "currency": "BRL"
+    }
+  },
+  "expect": {
+    "status": 201,
+    "json_schema": {
+      "type": "object",
+      "required": ["id", "amount", "currency", "status"],
+      "properties": {
+        "id": { "type": "string" },
+        "amount": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" },
+        "currency": { "const": "BRL" },
+        "status": { "const": "open" }
+      }
+    }
+  }
+}

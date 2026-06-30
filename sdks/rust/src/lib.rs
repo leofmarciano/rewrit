@@ -2,9 +2,7 @@
 
 #![forbid(unsafe_code)]
 
-use rewrit_model::{
-    CanonicalValue, CapturedText, Case, CaseId, CaseStatus, Effect, Observation, RuntimeId, SuiteId,
-};
+use rewrit_model::{CapturedText, Case, CaseId, Observation, RuntimeId, SuiteId};
 use rewrit_protocol::{encode_event_line, AdapterEvent, EVENT_SCHEMA_VERSION};
 use serde::Serialize;
 use std::collections::BTreeMap;
@@ -16,6 +14,7 @@ use std::io::Write;
 use std::sync::{Mutex, OnceLock};
 
 pub use rewrit_macros::case;
+pub use rewrit_model::{CanonicalValue, CaseStatus, Effect};
 
 #[derive(Debug, Default)]
 struct State {

@@ -8,10 +8,14 @@ runtime as a command-compatible cargo-test adapter:
 adapter = "rust:cargo_test"
 command = ["cargo", "test", "--", "--nocapture"]
 timeout_ms = 30000
+
+[runtimes.candidate.protocol]
+output = "file"
 ```
 
-`--nocapture` is required because the SDK writes NDJSON events to stdout when
-the engine is not using file transport.
+File output is recommended because `cargo test` writes harness text to stdout.
+`--nocapture` is still useful when a test emits events before the file transport
+environment is configured.
 
 ```rust
 #[rewrit::case("billing.invoice.create.success")]

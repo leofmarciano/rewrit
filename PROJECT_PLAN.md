@@ -154,7 +154,7 @@ runtime/framework specific code
 - [x] `examples/django-to-rust` manifest.
 - [x] `examples/php-to-node-monolith` manifest.
 - [x] Executable Laravel-to-Encore fixture.
-- [ ] Executable Django-to-Rust fixture.
+- [x] Executable Django-to-Rust fixture.
 - [ ] Executable PHP-to-Node fixture.
 
 ### 10. Security And Isolation
