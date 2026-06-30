@@ -4,4 +4,3 @@ use rewrit_model::CanonicalValue;
 pub fn canonical_json_equivalent(reference: &CanonicalValue, candidate: &CanonicalValue) -> bool {
     reference == candidate
 }
-

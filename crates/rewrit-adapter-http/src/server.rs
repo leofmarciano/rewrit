@@ -15,4 +15,3 @@ pub enum ServerError {
     #[error("server healthcheck failed: {0}")]
     Healthcheck(String),
 }
-

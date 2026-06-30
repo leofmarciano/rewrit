@@ -35,4 +35,3 @@ fn normalize_call(call: &mut HttpCall) {
         .map(|(key, value)| (key.to_ascii_lowercase(), value.clone()))
         .collect();
 }
-

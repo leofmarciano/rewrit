@@ -9,4 +9,3 @@ pub struct HttpResponseObservation {
     pub headers: BTreeMap<String, String>,
     pub body: Option<CanonicalValue>,
 }
-

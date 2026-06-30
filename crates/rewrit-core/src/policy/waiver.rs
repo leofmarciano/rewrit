@@ -35,14 +35,14 @@ impl WaiverSet {
                     if is_expired(&waiver.expires) {
                         divergence.kind = DivergenceKind::WaiverExpired;
                         divergence.severity = Severity::Blocking;
-                        divergence.message = format!(
-                            "Waiver expired on {}: {}",
-                            waiver.expires, waiver.reason
-                        );
+                        divergence.message =
+                            format!("Waiver expired on {}: {}", waiver.expires, waiver.reason);
                     } else {
                         divergence.severity = Severity::Allowed;
-                        divergence.message =
-                            format!("Allowed by waiver until {}: {}", waiver.expires, waiver.reason);
+                        divergence.message = format!(
+                            "Allowed by waiver until {}: {}",
+                            waiver.expires, waiver.reason
+                        );
                     }
                 }
 
@@ -54,7 +54,12 @@ impl WaiverSet {
 
 fn is_expired(expires: &str) -> bool {
     let now = time::OffsetDateTime::now_utc().date();
-    let today = format!("{:04}-{:02}-{:02}", now.year(), u8::from(now.month()), now.day());
+    let today = format!(
+        "{:04}-{:02}-{:02}",
+        now.year(),
+        u8::from(now.month()),
+        now.day()
+    );
     expires < today.as_str()
 }
 

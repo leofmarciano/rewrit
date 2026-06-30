@@ -10,4 +10,3 @@ pub fn run(command: ReportCommand) -> io::Result<i32> {
         }
     }
 }
-

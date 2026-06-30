@@ -1,7 +1,4 @@
+.rewrit/
 /target/
-/.rewrit/cache/
-/.rewrit/tmp/
-/.rewrit/locks/
 /.DS_Store
 *.log
-

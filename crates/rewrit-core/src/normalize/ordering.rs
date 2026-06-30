@@ -19,4 +19,3 @@ impl Normalizer for OrderingNormalizer {
         Ok(observation)
     }
 }
-

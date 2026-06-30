@@ -8,7 +8,10 @@ pub fn render(report: &Report) -> String {
         .iter()
         .filter(|divergence| matches!(divergence.severity, Severity::Blocking))
         .count();
-    let tests = report.summary.cases_compared.max(report.summary.cases_discovered);
+    let tests = report
+        .summary
+        .cases_compared
+        .max(report.summary.cases_discovered);
     let mut output = String::new();
     output.push_str(r#"<?xml version="1.0" encoding="UTF-8"?>"#);
     output.push('\n');
@@ -37,4 +40,3 @@ pub fn render(report: &Report) -> String {
     output.push_str("</testsuite>\n");
     output
 }
-

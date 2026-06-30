@@ -118,4 +118,3 @@ kind = "json"
 path = ".rewrit/reports/latest.json"
 "#
 }
-

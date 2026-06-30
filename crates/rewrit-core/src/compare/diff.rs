@@ -37,4 +37,3 @@ where
 pub fn value_type_name(value: &CanonicalValue) -> &'static str {
     value.kind_name()
 }
-

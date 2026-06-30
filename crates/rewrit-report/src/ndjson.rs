@@ -10,4 +10,3 @@ pub fn render(report: &Report) -> Result<String, serde_json::Error> {
     }
     Ok(output)
 }
-

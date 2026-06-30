@@ -12,4 +12,3 @@ pub mod django {
 pub mod pytest {
     pub const PLUGIN: &str = "rewrit_pytest.plugin";
 }
-

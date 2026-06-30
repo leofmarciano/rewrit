@@ -50,4 +50,3 @@ fn normalize_error(error: &mut CanonicalError, root: &str, replacement: &str) {
         }
     }
 }
-

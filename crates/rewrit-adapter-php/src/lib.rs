@@ -17,4 +17,3 @@ pub mod pest {
 pub mod phpunit {
     pub const EXTENSION: &str = "Rewrit\\PHPUnitExtension";
 }
-

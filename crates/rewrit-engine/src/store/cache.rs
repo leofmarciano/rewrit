@@ -4,4 +4,3 @@ use std::path::PathBuf;
 pub struct CacheStore {
     pub root: PathBuf,
 }
-

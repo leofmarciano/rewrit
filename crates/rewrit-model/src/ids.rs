@@ -52,4 +52,3 @@ id_type!(CaseId);
 id_type!(SuiteId);
 id_type!(RuntimeId);
 id_type!(AdapterId);
-

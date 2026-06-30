@@ -12,4 +12,3 @@ pub const ADAPTER_NAME: &str = "command";
 pub fn is_command_adapter(name: &str) -> bool {
     name == ADAPTER_NAME || name.starts_with("command:")
 }
-

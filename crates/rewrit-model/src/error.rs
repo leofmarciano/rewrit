@@ -37,4 +37,3 @@ pub struct StackFrame {
     pub line: Option<u32>,
     pub column: Option<u32>,
 }
-

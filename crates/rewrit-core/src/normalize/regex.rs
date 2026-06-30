@@ -114,4 +114,3 @@ fn normalize_json(value: &mut serde_json::Value, replace: &dyn Fn(&str) -> Strin
         serde_json::Value::Null | serde_json::Value::Bool(_) | serde_json::Value::Number(_) => {}
     }
 }
-

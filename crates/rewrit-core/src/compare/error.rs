@@ -21,4 +21,3 @@ pub fn errors_equivalent(
         _ => false,
     }
 }
-

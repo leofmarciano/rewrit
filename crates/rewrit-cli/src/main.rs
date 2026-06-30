@@ -25,7 +25,11 @@ async fn main() -> Result<()> {
             print!("{}", rewrit_report::terminal::render(&report));
             report.summary.exit_code
         }
-        Commands::Discover { manifest, runtime, format } => {
+        Commands::Discover {
+            manifest,
+            runtime,
+            format,
+        } => {
             let engine = Engine::from_manifest_path(manifest).into_diagnostic()?;
             let runtime = runtime.map(rewrit_model::RuntimeId::new);
             let cases = engine.discover(runtime.as_ref()).await.into_diagnostic()?;
@@ -41,12 +45,17 @@ async fn main() -> Result<()> {
             print!("{}", rewrit_report::terminal::render(&report));
             report.summary.exit_code
         }
-        Commands::Verify { manifest, runtime, contracts } => {
+        Commands::Verify {
+            manifest,
+            runtime,
+            contracts,
+        } => {
             let engine = Engine::from_manifest_path(manifest).into_diagnostic()?;
             if !contracts.is_empty() {
                 tracing::info!(contracts = ?contracts, "contract selection is accepted by the CLI and resolved by manifest-backed runtimes in this MVP");
             }
-            let runtime = runtime.unwrap_or_else(|| engine.manifest().project.candidate.to_string());
+            let runtime =
+                runtime.unwrap_or_else(|| engine.manifest().project.candidate.to_string());
             let report = engine
                 .verify(&rewrit_model::RuntimeId::new(runtime))
                 .await
@@ -88,4 +97,3 @@ async fn main() -> Result<()> {
 
     std::process::exit(exit_code);
 }
-

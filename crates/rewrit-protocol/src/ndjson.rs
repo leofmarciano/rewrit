@@ -22,7 +22,10 @@ pub fn encode_event_line(event: &AdapterEvent) -> Result<String, serde_json::Err
     Ok(encoded)
 }
 
-pub fn decode_event_line(line: &str, line_number: usize) -> Result<Option<AdapterEvent>, ProtocolError> {
+pub fn decode_event_line(
+    line: &str,
+    line_number: usize,
+) -> Result<Option<AdapterEvent>, ProtocolError> {
     if line.trim().is_empty() {
         return Ok(None);
     }
@@ -33,7 +36,10 @@ pub fn decode_event_line(line: &str, line_number: usize) -> Result<Option<Adapte
             source,
         })?;
 
-    let Some(schema_version) = value.get("schema_version").and_then(serde_json::Value::as_str) else {
+    let Some(schema_version) = value
+        .get("schema_version")
+        .and_then(serde_json::Value::as_str)
+    else {
         return Err(ProtocolError::MissingVersion { line: line_number });
     };
 

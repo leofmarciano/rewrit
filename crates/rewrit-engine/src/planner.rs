@@ -8,7 +8,8 @@ pub struct ExecutionPlan {
 impl ExecutionPlan {
     #[must_use]
     pub fn all() -> Self {
-        Self { case_ids: Vec::new() }
+        Self {
+            case_ids: Vec::new(),
+        }
     }
 }
-

@@ -38,4 +38,3 @@ pub struct ContractExpectation {
     #[serde(default)]
     pub effects: Vec<Value>,
 }
-

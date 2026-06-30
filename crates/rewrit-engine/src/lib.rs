@@ -13,8 +13,6 @@ pub mod runner;
 pub mod scheduler;
 pub mod store;
 
-pub use engine::{
-    Engine, EngineError, EngineOptions, ExplainResult, Manifest, RunMode,
-};
 pub use discovery::manifest::ProjectConfig;
+pub use engine::{Engine, EngineError, EngineOptions, ExplainResult, Manifest, RunMode};
 pub use runner::process::{ProcessOutput, ProcessRunner, RuntimeProcess};

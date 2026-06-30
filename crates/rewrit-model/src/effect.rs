@@ -98,4 +98,3 @@ pub struct LogRecord {
     #[serde(default)]
     pub fields: BTreeMap<String, String>,
 }
-

@@ -13,4 +13,3 @@ pub struct BindingConfig {
 fn default_required() -> bool {
     true
 }
-

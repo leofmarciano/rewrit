@@ -19,7 +19,10 @@ pub enum BaselineError {
 }
 
 pub fn current_path(store: &RewritStore, runtime_id: &RuntimeId) -> PathBuf {
-    store.baselines_dir.join(runtime_id.as_str()).join("current.jsonl")
+    store
+        .baselines_dir
+        .join(runtime_id.as_str())
+        .join("current.jsonl")
 }
 
 pub fn write_current(
@@ -66,4 +69,3 @@ pub fn read_current(
         .collect();
     Ok(observations)
 }
-

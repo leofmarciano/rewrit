@@ -17,9 +17,11 @@ impl Redactor {
 
     #[must_use]
     pub fn redact(&self, input: &str) -> String {
-        self.patterns.iter().fold(input.to_string(), |acc, pattern| {
-            pattern.replace_all(&acc, "<REDACTED>").into_owned()
-        })
+        self.patterns
+            .iter()
+            .fold(input.to_string(), |acc, pattern| {
+                pattern.replace_all(&acc, "<REDACTED>").into_owned()
+            })
     }
 }
 
@@ -34,4 +36,3 @@ pub fn truncate(mut text: String, max_bytes: usize) -> (String, bool) {
     text.truncate(max_bytes);
     (text, true)
 }
-

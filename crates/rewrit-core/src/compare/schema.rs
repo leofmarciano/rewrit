@@ -4,4 +4,3 @@ use rewrit_model::Divergence;
 pub struct SchemaComparison {
     pub divergences: Vec<Divergence>,
 }
-

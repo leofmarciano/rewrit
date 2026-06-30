@@ -7,4 +7,3 @@ pub enum ManifestValidationError {
     #[error("manifest has no project name")]
     MissingProjectName,
 }
-

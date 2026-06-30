@@ -9,7 +9,7 @@ use rewrit_core::normalize::http::HttpHeaderNormalizer;
 use rewrit_core::normalize::path::PathNormalizer;
 use rewrit_core::normalize::regex::RegexNormalizer;
 use rewrit_core::normalize::time::timestamp_normalizer;
-use rewrit_core::normalize::{NormalizeContext, NormalizationPipeline, Normalizer};
+use rewrit_core::normalize::{NormalizationPipeline, NormalizeContext, Normalizer};
 use rewrit_core::policy::{Policy, PolicyEngine, Waiver, WaiverSet};
 use rewrit_core::{CompareContext, StrictComparator};
 use rewrit_model::{
@@ -43,7 +43,10 @@ impl EngineOptions {
             .parent()
             .unwrap_or_else(|| Path::new("."))
             .to_path_buf();
-        Self { manifest_path, root }
+        Self {
+            manifest_path,
+            root,
+        }
     }
 }
 
@@ -107,17 +110,17 @@ struct RuntimeRun {
 impl Engine {
     pub fn from_manifest_path(path: impl Into<PathBuf>) -> Result<Self, EngineError> {
         let options = EngineOptions::new(path);
-        let input =
-            std::fs::read_to_string(&options.manifest_path).map_err(|source| EngineError::ReadManifest {
-                path: options.manifest_path.display().to_string(),
-                source,
-            })?;
-        let manifest: Manifest = toml::from_str(&input).map_err(|source| {
-            EngineError::ParseManifest {
+        let input = std::fs::read_to_string(&options.manifest_path).map_err(|source| {
+            EngineError::ReadManifest {
                 path: options.manifest_path.display().to_string(),
                 source,
             }
         })?;
+        let manifest: Manifest =
+            toml::from_str(&input).map_err(|source| EngineError::ParseManifest {
+                path: options.manifest_path.display().to_string(),
+                source,
+            })?;
         validate_manifest(&manifest)?;
         let store = RewritStore::new(
             &options.root,
@@ -177,12 +180,8 @@ impl Engine {
     pub async fn capture(&self, runtime_id: &RuntimeId) -> Result<Report, EngineError> {
         let run = self.run_runtime(runtime_id).await?;
         baseline::write_current(&self.store, runtime_id, &run.observations)?;
-        let report = self.report_from_divergences(
-            "capture",
-            run.cases,
-            run.observations,
-            Vec::new(),
-        );
+        let report =
+            self.report_from_divergences("capture", run.cases, run.observations, Vec::new());
         self.write_configured_reports(&report)?;
         Ok(report)
     }
@@ -247,14 +246,14 @@ impl Engine {
         runtime: &RuntimeConfig,
     ) -> Result<RuntimeRun, EngineError> {
         let process = self.runner.from_runtime(&self.options.root, runtime);
-        let output = self
-            .runner
-            .run(&process)
-            .await
-            .map_err(|source| EngineError::RuntimeFailed {
-                runtime_id: runtime_id.clone(),
-                source,
-            })?;
+        let output =
+            self.runner
+                .run(&process)
+                .await
+                .map_err(|source| EngineError::RuntimeFailed {
+                    runtime_id: runtime_id.clone(),
+                    source,
+                })?;
 
         if output.timed_out {
             let observation = Observation {
@@ -296,7 +295,8 @@ impl Engine {
                 AdapterEvent::AdapterError {
                     case_id, message, ..
                 } => run.observations.push(Observation {
-                    case_id: case_id.unwrap_or_else(|| CaseId::new(format!("{runtime_id}.adapter_error"))),
+                    case_id: case_id
+                        .unwrap_or_else(|| CaseId::new(format!("{runtime_id}.adapter_error"))),
                     runtime_id: runtime_id.clone(),
                     status: CaseStatus::AdapterError,
                     value: None,
@@ -428,12 +428,8 @@ impl Engine {
             }
         }
 
-        let mut report = self.report_from_divergences(
-            "run",
-            reference.cases,
-            Vec::new(),
-            divergences,
-        );
+        let mut report =
+            self.report_from_divergences("run", reference.cases, Vec::new(), divergences);
         report.summary.cases_compared = all_ids.len();
         report.summary.equivalent = equivalent;
         report.summary.parity_ratio = if report.summary.cases_compared == 0 {
@@ -711,7 +707,11 @@ fn apply_policy_config(policy: &mut Policy, config: &PolicyConfig) {
     }
 }
 
-fn case_divergence(case_id: CaseId, kind: DivergenceKind, message: impl Into<String>) -> Divergence {
+fn case_divergence(
+    case_id: CaseId,
+    kind: DivergenceKind,
+    message: impl Into<String>,
+) -> Divergence {
     Divergence {
         machine_code: format!("{kind:?}").to_ascii_lowercase(),
         kind,

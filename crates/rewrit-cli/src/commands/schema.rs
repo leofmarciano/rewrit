@@ -15,4 +15,3 @@ pub fn run(command: SchemaCommand) -> Result<i32, serde_json::Error> {
         }
     }
 }
-

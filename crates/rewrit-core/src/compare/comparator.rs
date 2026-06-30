@@ -1,9 +1,7 @@
 use crate::compare::diff::{divergence, value_type_name};
 use crate::compare::error::errors_equivalent;
 use crate::policy::Policy;
-use rewrit_model::{
-    CaseId, Divergence, DivergenceKind, Observation, Severity, SourceLocation,
-};
+use rewrit_model::{CaseId, Divergence, DivergenceKind, Observation, Severity, SourceLocation};
 
 #[derive(Debug, Clone)]
 pub struct CompareContext {
@@ -110,7 +108,11 @@ impl Comparator for StrictComparator {
             _ => {}
         }
 
-        if !errors_equivalent(reference.error.as_ref(), candidate.error.as_ref(), &ctx.policy) {
+        if !errors_equivalent(
+            reference.error.as_ref(),
+            candidate.error.as_ref(),
+            &ctx.policy,
+        ) {
             divergences.push(divergence(
                 DivergenceKind::ErrorMismatch,
                 reference.case_id.clone(),
@@ -174,4 +176,3 @@ impl Comparator for StrictComparator {
         }
     }
 }
-

@@ -29,4 +29,3 @@ pub struct Case {
 fn default_required() -> bool {
     true
 }
-

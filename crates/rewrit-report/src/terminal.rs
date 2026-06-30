@@ -6,7 +6,9 @@ pub fn render(report: &Report) -> String {
     let mut by_kind: BTreeMap<String, usize> = BTreeMap::new();
     for divergence in &report.divergences {
         if matches!(divergence.severity, Severity::Blocking) {
-            *by_kind.entry(kind_name(&divergence.kind).to_string()).or_default() += 1;
+            *by_kind
+                .entry(kind_name(&divergence.kind).to_string())
+                .or_default() += 1;
         }
     }
 
@@ -19,14 +21,20 @@ pub fn render(report: &Report) -> String {
         "Cases discovered: {}\n",
         report.summary.cases_discovered
     ));
-    output.push_str(&format!("Cases compared: {}\n", report.summary.cases_compared));
+    output.push_str(&format!(
+        "Cases compared: {}\n",
+        report.summary.cases_compared
+    ));
     output.push_str(&format!("Equivalent: {}\n", report.summary.equivalent));
     output.push_str(&format!("Allowed by waiver: {}\n", report.summary.waived));
     output.push_str(&format!(
         "Blocking divergences: {}\n",
         report.summary.blocking
     ));
-    output.push_str(&format!("Parity: {:.2}%\n\n", report.summary.parity_ratio * 100.0));
+    output.push_str(&format!(
+        "Parity: {:.2}%\n\n",
+        report.summary.parity_ratio * 100.0
+    ));
 
     if !by_kind.is_empty() {
         output.push_str("Blocking:\n");

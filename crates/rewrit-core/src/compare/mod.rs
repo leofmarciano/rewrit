@@ -5,5 +5,4 @@ pub mod error;
 pub mod json;
 pub mod schema;
 
-pub use comparator::{Comparator, Comparison, CompareContext, StrictComparator};
-
+pub use comparator::{Comparator, CompareContext, Comparison, StrictComparator};

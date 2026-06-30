@@ -53,4 +53,3 @@ pub struct Divergence {
     pub normalizers_applied: Vec<String>,
     pub hint: Option<String>,
 }
-

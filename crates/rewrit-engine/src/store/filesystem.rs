@@ -31,4 +31,3 @@ impl RewritStore {
         Ok(())
     }
 }
-

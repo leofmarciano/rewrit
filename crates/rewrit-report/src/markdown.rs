@@ -25,4 +25,3 @@ pub fn render(report: &Report) -> String {
     }
     output
 }
-

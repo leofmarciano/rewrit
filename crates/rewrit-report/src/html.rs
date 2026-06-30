@@ -4,7 +4,9 @@ use rewrit_model::Report;
 #[must_use]
 pub fn render(report: &Report) -> String {
     let mut output = String::new();
-    output.push_str("<!doctype html><html><head><meta charset=\"utf-8\"><title>Rewrit report</title>");
+    output.push_str(
+        "<!doctype html><html><head><meta charset=\"utf-8\"><title>Rewrit report</title>",
+    );
     output.push_str("<style>body{font-family:system-ui,sans-serif;margin:2rem;line-height:1.45}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:.5rem;text-align:left}code{background:#f5f5f5;padding:.1rem .25rem}</style>");
     output.push_str("</head><body>");
     output.push_str(&format!("<h1>{}</h1>", escape_xml(&report.project)));
@@ -28,4 +30,3 @@ pub fn render(report: &Report) -> String {
     output.push_str("</tbody></table></body></html>");
     output
 }
-

@@ -23,4 +23,3 @@ impl From<&ContractInput> for HttpRequestSpec {
         }
     }
 }
-

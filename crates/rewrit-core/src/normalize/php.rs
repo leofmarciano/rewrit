@@ -17,4 +17,3 @@ impl Normalizer for PhpArrayNormalizer {
         Ok(observation)
     }
 }
-

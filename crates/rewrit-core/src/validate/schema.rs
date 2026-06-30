@@ -15,4 +15,3 @@ pub fn validate_contract(contract: &Contract) -> Result<(), SchemaValidationErro
     }
     Ok(())
 }
-

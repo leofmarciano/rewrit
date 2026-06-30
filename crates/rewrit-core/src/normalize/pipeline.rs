@@ -61,7 +61,9 @@ impl NormalizationPipeline {
             }
         }
 
-        Ok(NormalizationResult { observation, applied })
+        Ok(NormalizationResult {
+            observation,
+            applied,
+        })
     }
 }
-

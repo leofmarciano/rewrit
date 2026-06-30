@@ -62,4 +62,3 @@ pub struct Observation {
     #[serde(default)]
     pub metadata: BTreeMap<String, String>,
 }
-

@@ -176,4 +176,3 @@ impl Default for RunnerConfig {
 fn default_true() -> bool {
     true
 }
-

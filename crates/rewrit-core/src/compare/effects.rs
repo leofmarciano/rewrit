@@ -4,4 +4,3 @@ use rewrit_model::Effect;
 pub fn effects_equivalent(reference: &[Effect], candidate: &[Effect]) -> bool {
     reference == candidate
 }
-

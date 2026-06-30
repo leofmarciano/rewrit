@@ -24,11 +24,13 @@ pub fn observation(case_id: impl Into<String>, runtime_id: impl Into<String>) ->
 }
 
 pub fn emit_observation(observation: Observation) -> Result<(), serde_json::Error> {
-    print!("{}", encode_event_line(&AdapterEvent::observation(observation))?);
+    print!(
+        "{}",
+        encode_event_line(&AdapterEvent::observation(observation))?
+    );
     Ok(())
 }
 
 pub mod macros {
     pub const FUTURE_CASE_MACRO: &str = "#[rewrit::case]";
 }
-

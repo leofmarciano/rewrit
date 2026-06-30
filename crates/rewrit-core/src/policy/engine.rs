@@ -1,5 +1,5 @@
-use crate::compare::{Comparator, Comparison, CompareContext, StrictComparator};
-use crate::normalize::{NormalizeContext, NormalizationPipeline, NormalizationResult};
+use crate::compare::{Comparator, CompareContext, Comparison, StrictComparator};
+use crate::normalize::{NormalizationPipeline, NormalizationResult, NormalizeContext};
 use crate::policy::WaiverSet;
 use rewrit_model::{CanonicalValue, Observation};
 
@@ -50,7 +50,11 @@ impl Default for Policy {
 
 impl Policy {
     #[must_use]
-    pub fn values_equivalent(&self, reference: &CanonicalValue, candidate: &CanonicalValue) -> bool {
+    pub fn values_equivalent(
+        &self,
+        reference: &CanonicalValue,
+        candidate: &CanonicalValue,
+    ) -> bool {
         if reference == candidate {
             return true;
         }
@@ -91,6 +95,43 @@ pub struct PolicyEngine {
     pub policy: Policy,
 }
 
+impl Default for PolicyEngine {
+    fn default() -> Self {
+        Self {
+            normalizers: NormalizationPipeline::default(),
+            comparator: Box::new(StrictComparator),
+            waivers: WaiverSet::default(),
+            policy: Policy::default(),
+        }
+    }
+}
+
+impl PolicyEngine {
+    pub fn normalize(
+        &self,
+        observation: Observation,
+        ctx: &NormalizeContext,
+    ) -> Result<NormalizationResult, crate::normalize::NormalizeError> {
+        self.normalizers.normalize(observation, ctx)
+    }
+
+    #[must_use]
+    pub fn compare(
+        &self,
+        reference: &Observation,
+        candidate: &Observation,
+        ctx: CompareContext,
+    ) -> Comparison {
+        let mut comparison = self.comparator.compare(reference, candidate, &ctx);
+        comparison.divergences = self.waivers.apply(comparison.divergences);
+        comparison.equivalent = comparison
+            .divergences
+            .iter()
+            .all(|divergence| !matches!(divergence.severity, rewrit_model::Severity::Blocking));
+        comparison
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Policy;
@@ -122,41 +163,5 @@ mod tests {
                 value: "199.9".to_string()
             }
         ));
-    }
-}
-
-impl Default for PolicyEngine {
-    fn default() -> Self {
-        Self {
-            normalizers: NormalizationPipeline::default(),
-            comparator: Box::new(StrictComparator),
-            waivers: WaiverSet::default(),
-            policy: Policy::default(),
-        }
-    }
-}
-
-impl PolicyEngine {
-    pub fn normalize(
-        &self,
-        observation: Observation,
-        ctx: &NormalizeContext,
-    ) -> Result<NormalizationResult, crate::normalize::NormalizeError> {
-        self.normalizers.normalize(observation, ctx)
-    }
-
-    #[must_use]
-    pub fn compare(
-        &self,
-        reference: &Observation,
-        candidate: &Observation,
-        ctx: CompareContext,
-    ) -> Comparison {
-        let mut comparison = self.comparator.compare(reference, candidate, &ctx);
-        comparison.divergences = self.waivers.apply(comparison.divergences);
-        comparison.equivalent = comparison.divergences.iter().all(|divergence| {
-            !matches!(divergence.severity, rewrit_model::Severity::Blocking)
-        });
-        comparison
     }
 }

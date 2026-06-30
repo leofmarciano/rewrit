@@ -7,6 +7,5 @@ pub mod regex;
 pub mod time;
 
 pub use pipeline::{
-    NormalizeContext, NormalizeError, NormalizationPipeline, NormalizationResult, Normalizer,
+    NormalizationPipeline, NormalizationResult, NormalizeContext, NormalizeError, Normalizer,
 };
-

@@ -8,4 +8,3 @@ pub fn timestamp_normalizer() -> RegexNormalizer {
     )
     .expect("built-in timestamp regex is valid")
 }
-

@@ -14,10 +14,16 @@ pub fn print(result: ExplainResult) {
         }
         println!("Message: {}", divergence.message);
         if let Some(reference) = divergence.reference {
-            println!("\nReference:\n{}", serde_json::to_string_pretty(&reference).unwrap_or_default());
+            println!(
+                "\nReference:\n{}",
+                serde_json::to_string_pretty(&reference).unwrap_or_default()
+            );
         }
         if let Some(candidate) = divergence.candidate {
-            println!("\nCandidate:\n{}", serde_json::to_string_pretty(&candidate).unwrap_or_default());
+            println!(
+                "\nCandidate:\n{}",
+                serde_json::to_string_pretty(&candidate).unwrap_or_default()
+            );
         }
         if let Some(policy) = divergence.policy {
             println!("\nPolicy: {policy}");
@@ -27,4 +33,3 @@ pub fn print(result: ExplainResult) {
         }
     }
 }
-

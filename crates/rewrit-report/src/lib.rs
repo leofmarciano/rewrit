@@ -64,4 +64,3 @@ pub(crate) fn escape_xml(input: &str) -> String {
         .replace('"', "&quot;")
         .replace('\'', "&apos;")
 }
-

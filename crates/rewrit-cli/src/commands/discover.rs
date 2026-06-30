@@ -10,4 +10,3 @@ pub fn print_cases(cases: &[Case], format: &str) -> Result<(), serde_json::Error
     }
     Ok(())
 }
-

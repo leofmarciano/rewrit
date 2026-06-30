@@ -7,4 +7,3 @@ pub mod response;
 pub mod server;
 
 pub const ADAPTER_NAME: &str = "http";
-

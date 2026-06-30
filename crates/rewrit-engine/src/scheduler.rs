@@ -8,4 +8,3 @@ impl Default for SchedulerConfig {
         Self { max_parallel: 1 }
     }
 }
-

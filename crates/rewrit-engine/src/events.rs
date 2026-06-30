@@ -12,4 +12,3 @@ pub enum EngineEvent {
     DivergenceFound { divergence: Divergence },
     RunFinished { run_id: String, exit_code: i32 },
 }
-

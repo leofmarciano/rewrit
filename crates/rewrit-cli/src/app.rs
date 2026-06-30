@@ -2,7 +2,11 @@ use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
-#[command(name = "rewrit", version, about = "Parity engine for observable rewrite contracts")]
+#[command(
+    name = "rewrit",
+    version,
+    about = "Parity engine for observable rewrite contracts"
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Commands,
@@ -80,4 +84,3 @@ pub enum ReportCommand {
         path: PathBuf,
     },
 }
-
