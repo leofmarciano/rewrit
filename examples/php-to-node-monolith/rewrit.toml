@@ -8,15 +8,25 @@ reports_dir = ".rewrit/reports"
 
 [runtimes.reference_php]
 adapter = "command"
-command = ["php", "vendor/bin/phpunit", "--rewrit"]
+cwd = "reference-php"
+command = ["php", "run.php"]
 timeout_ms = 30000
+
+[runtimes.reference_php.protocol]
+output = "file"
 
 [runtimes.candidate_node]
 adapter = "command"
-command = ["npm", "run", "test:rewrit"]
+cwd = "candidate-node"
+command = ["node", "run.mjs"]
 timeout_ms = 30000
+
+[runtimes.candidate_node.protocol]
+output = "file"
+
+[[reports]]
+kind = "terminal"
 
 [[reports]]
 kind = "json"
 path = ".rewrit/reports/latest.json"
-

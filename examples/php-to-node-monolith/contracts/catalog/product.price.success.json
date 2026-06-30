@@ -1,0 +1,31 @@
+{
+  "schema_version": "rewrit.contract.v1",
+  "id": "catalog.product.price.success",
+  "kind": "function_case",
+  "input": {
+    "json": {
+      "sku": "sku_123",
+      "quantity": 2
+    }
+  },
+  "expect": {
+    "json": {
+      "sku": "sku_123",
+      "unit_price": "49.95",
+      "quantity": 2,
+      "total": "99.90",
+      "currency": "BRL"
+    },
+    "json_schema": {
+      "type": "object",
+      "required": ["sku", "unit_price", "quantity", "total", "currency"],
+      "properties": {
+        "sku": { "const": "sku_123" },
+        "unit_price": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" },
+        "quantity": { "type": "integer" },
+        "total": { "type": "string", "pattern": "^\\d+\\.\\d{2}$" },
+        "currency": { "const": "BRL" }
+      }
+    }
+  }
+}
