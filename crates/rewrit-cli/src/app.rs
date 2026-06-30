@@ -67,6 +67,11 @@ pub enum Commands {
         #[command(subcommand)]
         command: ReportCommand,
     },
+    Completions {
+        #[arg(long)]
+        shell: clap_complete::Shell,
+    },
+    Manpage,
 }
 
 #[derive(Debug, Subcommand)]

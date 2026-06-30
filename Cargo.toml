@@ -36,6 +36,8 @@ rewrit-adapter-http = { path = "crates/rewrit-adapter-http" }
 base64 = "0.22"
 camino = { version = "1", features = ["serde1"] }
 clap = { version = "4", features = ["derive"] }
+clap_complete = "4"
+clap_mangen = "0.2"
 futures = "0.3"
 globset = "0.4"
 ignore = "0.4"

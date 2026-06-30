@@ -115,6 +115,8 @@ async fn run(cli: Cli) -> Result<i32, CliError> {
             commands::schema::run(command)?
         }
         Commands::Report { command } => commands::report::run(command)?,
+        Commands::Completions { shell } => commands::completions::run(shell)?,
+        Commands::Manpage => commands::manpage::run()?,
     };
 
     Ok(exit_code)

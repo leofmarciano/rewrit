@@ -117,7 +117,7 @@ runtime/framework specific code
 - [x] `rewrit schema export`
 - [x] `rewrit report open`
 - [x] Add stricter CLI UX around unsupported modes/features.
-- [ ] Add shell completions/manpage generation.
+- [x] Add shell completions/manpage generation.
 
 ### 7. Adapters And SDKs
 
