@@ -51,15 +51,19 @@ async fn main() -> Result<()> {
             contracts,
         } => {
             let engine = Engine::from_manifest_path(manifest).into_diagnostic()?;
-            if !contracts.is_empty() {
-                tracing::info!(contracts = ?contracts, "contract selection is accepted by the CLI and resolved by manifest-backed runtimes in this MVP");
-            }
-            let runtime =
-                runtime.unwrap_or_else(|| engine.manifest().project.candidate.to_string());
-            let report = engine
-                .verify(&rewrit_model::RuntimeId::new(runtime))
-                .await
-                .into_diagnostic()?;
+            let report = if contracts.is_empty() {
+                let runtime =
+                    runtime.unwrap_or_else(|| engine.manifest().project.candidate.to_string());
+                engine
+                    .verify(&rewrit_model::RuntimeId::new(runtime))
+                    .await
+                    .into_diagnostic()?
+            } else {
+                engine
+                    .verify_contracts(&contracts)
+                    .await
+                    .into_diagnostic()?
+            };
             print!("{}", rewrit_report::terminal::render(&report));
             report.summary.exit_code
         }

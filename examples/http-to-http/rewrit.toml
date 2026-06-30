@@ -11,12 +11,19 @@ adapter = "http"
 command = []
 timeout_ms = 30000
 
+[runtimes.reference_http.server]
+start = ["python3", "reference_server.py", "8011"]
+healthcheck = "http://127.0.0.1:8011/health"
+
 [runtimes.candidate_http]
 adapter = "http"
 command = []
 timeout_ms = 30000
 
+[runtimes.candidate_http.server]
+start = ["python3", "candidate_server.py", "8012"]
+healthcheck = "http://127.0.0.1:8012/health"
+
 [[reports]]
 kind = "json"
 path = ".rewrit/reports/latest.json"
-

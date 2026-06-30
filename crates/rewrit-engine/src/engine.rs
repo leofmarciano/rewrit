@@ -4,6 +4,7 @@ use crate::discovery::manifest::{
 use crate::runner::process::{ProcessError, ProcessRunner};
 use crate::store::baseline;
 use crate::store::filesystem::RewritStore;
+use rewrit_adapter_http::HttpAdapterError;
 use rewrit_core::compare::Comparator;
 use rewrit_core::normalize::http::HttpHeaderNormalizer;
 use rewrit_core::normalize::path::PathNormalizer;
@@ -13,13 +14,15 @@ use rewrit_core::normalize::{NormalizationPipeline, NormalizeContext, Normalizer
 use rewrit_core::policy::{Policy, PolicyEngine, Waiver, WaiverSet};
 use rewrit_core::{CompareContext, StrictComparator};
 use rewrit_model::{
-    CapturedText, Case, CaseId, CaseStatus, Divergence, DivergenceKind, Observation, Report,
-    ReportSummary, RuntimeId, Severity,
+    CapturedText, Case, CaseId, CaseStatus, Contract, ContractRef, Divergence, DivergenceKind,
+    Observation, Report, ReportSummary, RuntimeId, Severity, SourceLocation, SuiteId,
 };
 use rewrit_protocol::{decode_events, AdapterEvent};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use std::process::Stdio;
 use thiserror::Error;
+use tokio::process::{Child, Command};
 use uuid::Uuid;
 
 pub type Manifest = ManifestConfig;
@@ -86,6 +89,26 @@ pub enum EngineError {
         #[source]
         source: rewrit_protocol::ProtocolError,
     },
+    #[error("failed to read contract {path}: {source}")]
+    ReadContract {
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
+    #[error("failed to parse contract {path}: {message}")]
+    ParseContract { path: String, message: String },
+    #[error("http adapter failed for runtime {runtime_id}: {source}")]
+    HttpAdapter {
+        runtime_id: RuntimeId,
+        #[source]
+        source: HttpAdapterError,
+    },
+    #[error("failed to start HTTP server for runtime {runtime_id}: {source}")]
+    StartServer {
+        runtime_id: RuntimeId,
+        #[source]
+        source: std::io::Error,
+    },
     #[error("baseline error: {0}")]
     Baseline(#[from] baseline::BaselineError),
     #[error("report error: {0}")]
@@ -105,6 +128,12 @@ pub struct Engine {
 struct RuntimeRun {
     cases: Vec<Case>,
     observations: Vec<Observation>,
+}
+
+#[derive(Debug, Clone)]
+struct LoadedContract {
+    path: PathBuf,
+    contract: Contract,
 }
 
 impl Engine {
@@ -199,6 +228,43 @@ impl Engine {
         Ok(report)
     }
 
+    pub async fn verify_contracts(&self, contract_paths: &[String]) -> Result<Report, EngineError> {
+        let reference_runtime = self
+            .manifest
+            .runtimes
+            .get(&self.manifest.project.reference)
+            .ok_or_else(|| EngineError::RuntimeNotFound(self.manifest.project.reference.clone()))?;
+        let candidate_runtime = self
+            .manifest
+            .runtimes
+            .get(&self.manifest.project.candidate)
+            .ok_or_else(|| EngineError::RuntimeNotFound(self.manifest.project.candidate.clone()))?;
+        let contracts = self.load_contracts(Some(contract_paths))?;
+        let reference = if reference_runtime.adapter.starts_with("http") {
+            self.run_http_runtime(
+                &self.manifest.project.reference,
+                reference_runtime,
+                Some(&contracts),
+            )
+            .await?
+        } else {
+            self.run_runtime(&self.manifest.project.reference).await?
+        };
+        let candidate = if candidate_runtime.adapter.starts_with("http") {
+            self.run_http_runtime(
+                &self.manifest.project.candidate,
+                candidate_runtime,
+                Some(&contracts),
+            )
+            .await?
+        } else {
+            self.run_runtime(&self.manifest.project.candidate).await?
+        };
+        let report = self.compare_runs(reference, candidate);
+        self.write_configured_reports(&report)?;
+        Ok(report)
+    }
+
     pub async fn audit(&self) -> Result<Report, EngineError> {
         let reference = self.run_runtime(&self.manifest.project.reference).await?;
         let candidate = self.run_runtime(&self.manifest.project.candidate).await?;
@@ -234,6 +300,9 @@ impl Engine {
             .ok_or_else(|| EngineError::RuntimeNotFound(runtime_id.clone()))?;
 
         if runtime.adapter != "command" && !runtime.adapter.starts_with("command") {
+            if runtime.adapter == "http" || runtime.adapter.starts_with("http:") {
+                return self.run_http_runtime(runtime_id, runtime, None).await;
+            }
             return Ok(RuntimeRun::default());
         }
 
@@ -345,6 +414,198 @@ impl Engine {
         }
 
         Ok(run)
+    }
+
+    async fn run_http_runtime(
+        &self,
+        runtime_id: &RuntimeId,
+        runtime: &RuntimeConfig,
+        contracts: Option<&[LoadedContract]>,
+    ) -> Result<RuntimeRun, EngineError> {
+        let loaded_contracts = match contracts {
+            Some(contracts) => contracts.to_vec(),
+            None => self.load_contracts(None)?,
+        };
+        if loaded_contracts.is_empty() {
+            return Ok(RuntimeRun::default());
+        }
+
+        let mut server = self.start_http_server(runtime_id, runtime).await?;
+        if let Some(healthcheck) = runtime
+            .server
+            .as_ref()
+            .and_then(|server| server.healthcheck.as_ref())
+        {
+            rewrit_adapter_http::wait_for_healthcheck(
+                healthcheck,
+                std::time::Duration::from_millis(runtime.timeout_ms.unwrap_or(30_000)),
+            )
+            .await
+            .map_err(|source| EngineError::HttpAdapter {
+                runtime_id: runtime_id.clone(),
+                source,
+            })?;
+        }
+
+        let base_url = runtime
+            .server
+            .as_ref()
+            .and_then(|server| server.healthcheck.as_ref())
+            .map(|healthcheck| rewrit_adapter_http::base_url_from_healthcheck(healthcheck))
+            .transpose()
+            .map_err(|source| EngineError::HttpAdapter {
+                runtime_id: runtime_id.clone(),
+                source,
+            })?
+            .ok_or_else(|| {
+                EngineError::InvalidManifest(format!(
+                    "http runtime {runtime_id} requires server.healthcheck"
+                ))
+            })?;
+
+        let mut cases = Vec::new();
+        let mut observations = Vec::new();
+        for loaded in &loaded_contracts {
+            cases.push(case_from_contract(loaded));
+            match rewrit_adapter_http::execute_contract(
+                &base_url,
+                runtime_id.clone(),
+                &loaded.contract,
+                std::time::Duration::from_millis(runtime.timeout_ms.unwrap_or(30_000)),
+            )
+            .await
+            {
+                Ok(observation) => observations.push(observation),
+                Err(error) => observations.push(http_adapter_error_observation(
+                    runtime_id,
+                    &loaded.contract.id,
+                    error,
+                )),
+            }
+        }
+
+        if let Some(child) = &mut server {
+            let _ = child.kill().await;
+        }
+
+        Ok(RuntimeRun {
+            cases,
+            observations,
+        })
+    }
+
+    fn load_contracts(
+        &self,
+        patterns: Option<&[String]>,
+    ) -> Result<Vec<LoadedContract>, EngineError> {
+        let paths = match patterns {
+            Some(patterns) if !patterns.is_empty() => {
+                self.contract_paths_from_patterns(patterns)?
+            }
+            _ => {
+                let contracts_dir = self
+                    .manifest
+                    .project
+                    .contracts_dir
+                    .as_deref()
+                    .unwrap_or("contracts");
+                let mut paths = Vec::new();
+                collect_contract_files(&self.options.root.join(contracts_dir), &mut paths)?;
+                paths
+            }
+        };
+
+        paths
+            .into_iter()
+            .map(|path| {
+                let input =
+                    std::fs::read_to_string(&path).map_err(|source| EngineError::ReadContract {
+                        path: path.display().to_string(),
+                        source,
+                    })?;
+                let extension = path
+                    .extension()
+                    .and_then(|value| value.to_str())
+                    .unwrap_or("");
+                let contract = match extension {
+                    "yaml" | "yml" => {
+                        serde_yaml::from_str::<Contract>(&input).map_err(|source| {
+                            EngineError::ParseContract {
+                                path: path.display().to_string(),
+                                message: source.to_string(),
+                            }
+                        })?
+                    }
+                    _ => serde_json::from_str::<Contract>(&input).map_err(|source| {
+                        EngineError::ParseContract {
+                            path: path.display().to_string(),
+                            message: source.to_string(),
+                        }
+                    })?,
+                };
+                Ok(LoadedContract { path, contract })
+            })
+            .collect()
+    }
+
+    fn contract_paths_from_patterns(
+        &self,
+        patterns: &[String],
+    ) -> Result<Vec<PathBuf>, EngineError> {
+        let mut builder = globset::GlobSetBuilder::new();
+        for pattern in patterns {
+            builder.add(globset::Glob::new(pattern).map_err(|error| {
+                EngineError::InvalidManifest(format!("invalid contract glob {pattern}: {error}"))
+            })?);
+        }
+        let globset = builder.build().map_err(|error| {
+            EngineError::InvalidManifest(format!("invalid contract globs: {error}"))
+        })?;
+        let mut all_files = Vec::new();
+        collect_contract_files(&self.options.root, &mut all_files)?;
+        Ok(all_files
+            .into_iter()
+            .filter(|path| {
+                let relative = path.strip_prefix(&self.options.root).unwrap_or(path);
+                globset.is_match(relative)
+            })
+            .collect())
+    }
+
+    async fn start_http_server(
+        &self,
+        runtime_id: &RuntimeId,
+        runtime: &RuntimeConfig,
+    ) -> Result<Option<Child>, EngineError> {
+        let Some(server) = &runtime.server else {
+            return Ok(None);
+        };
+        let Some((program, args)) = server.start.split_first() else {
+            return Ok(None);
+        };
+
+        let cwd = runtime
+            .cwd
+            .as_ref()
+            .map(|cwd| self.options.root.join(cwd))
+            .unwrap_or_else(|| self.options.root.clone());
+        let mut command = Command::new(program);
+        command
+            .args(args)
+            .current_dir(cwd)
+            .envs(&runtime.env)
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .kill_on_drop(self.manifest.runner.kill_process_tree);
+
+        command
+            .spawn()
+            .map(Some)
+            .map_err(|source| EngineError::StartServer {
+                runtime_id: runtime_id.clone(),
+                source,
+            })
     }
 
     fn compare_runs(&self, reference: RuntimeRun, candidate: RuntimeRun) -> Report {
@@ -659,6 +920,77 @@ fn validate_manifest(manifest: &Manifest) -> Result<(), EngineError> {
         }
     }
     Ok(())
+}
+
+fn collect_contract_files(dir: &Path, paths: &mut Vec<PathBuf>) -> Result<(), EngineError> {
+    if !dir.exists() {
+        return Ok(());
+    }
+
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_dir() {
+            let skip = path
+                .file_name()
+                .and_then(|name| name.to_str())
+                .map(|name| matches!(name, ".git" | ".rewrit" | "target"))
+                .unwrap_or(false);
+            if !skip {
+                collect_contract_files(&path, paths)?;
+            }
+            continue;
+        }
+
+        let is_contract = path
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .map(|extension| matches!(extension, "json" | "yaml" | "yml"))
+            .unwrap_or(false);
+        if is_contract {
+            paths.push(path);
+        }
+    }
+
+    paths.sort();
+    Ok(())
+}
+
+fn case_from_contract(loaded: &LoadedContract) -> Case {
+    Case {
+        id: loaded.contract.id.clone(),
+        suite_id: SuiteId::new("contracts"),
+        title: loaded.contract.id.to_string(),
+        source_location: Some(SourceLocation {
+            path: loaded.path.display().to_string(),
+            line: None,
+            column: None,
+        }),
+        tags: vec![loaded.contract.kind.clone()],
+        contract_ref: Some(ContractRef(loaded.path.display().to_string())),
+        required: true,
+    }
+}
+
+fn http_adapter_error_observation(
+    runtime_id: &RuntimeId,
+    case_id: &CaseId,
+    error: HttpAdapterError,
+) -> Observation {
+    Observation {
+        case_id: case_id.clone(),
+        runtime_id: runtime_id.clone(),
+        status: CaseStatus::AdapterError,
+        value: None,
+        error: None,
+        stdout: CapturedText::default(),
+        stderr: CapturedText::new(error.to_string()),
+        exit_code: None,
+        duration_ms: 0,
+        effects: Vec::new(),
+        artifacts: Vec::new(),
+        metadata: BTreeMap::new(),
+    }
 }
 
 fn apply_policy_config(policy: &mut Policy, config: &PolicyConfig) {

@@ -31,6 +31,7 @@ rewrit-core = { path = "crates/rewrit-core" }
 rewrit-engine = { path = "crates/rewrit-engine" }
 rewrit-protocol = { path = "crates/rewrit-protocol" }
 rewrit-report = { path = "crates/rewrit-report" }
+rewrit-adapter-http = { path = "crates/rewrit-adapter-http" }
 
 base64 = "0.22"
 camino = { version = "1", features = ["serde1"] }
@@ -55,4 +56,3 @@ toml = "0.8"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 uuid = { version = "1", features = ["v7", "serde"] }
-
