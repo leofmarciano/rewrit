@@ -1,7 +1,7 @@
 mod app;
 mod commands;
 
-use app::{Cli, Commands};
+use app::{Cli, Commands, SchemaCommand};
 use clap::Parser;
 use rewrit_engine::{Engine, EngineError, RunMode};
 use rewrit_model::CaseId;
@@ -28,7 +28,14 @@ async fn main() {
 
 async fn run(cli: Cli) -> Result<i32, CliError> {
     let exit_code = match cli.command {
-        Commands::Init { template } => commands::init::run(template)?,
+        Commands::Init { template } => {
+            ensure_supported(
+                "template",
+                &template,
+                &["command-to-command", "laravel-to-encore", "django-to-rust"],
+            )?;
+            commands::init::run(template)?
+        }
         Commands::Doctor { manifest } => {
             let engine = Engine::from_manifest_path(manifest)?;
             let report = engine.doctor().await?;
@@ -40,6 +47,7 @@ async fn run(cli: Cli) -> Result<i32, CliError> {
             runtime,
             format,
         } => {
+            ensure_supported("discover format", &format, &["terminal", "json"])?;
             let engine = Engine::from_manifest_path(manifest)?;
             let runtime = runtime.map(rewrit_model::RuntimeId::new);
             let cases = engine.discover(runtime.as_ref()).await?;
@@ -76,10 +84,7 @@ async fn run(cli: Cli) -> Result<i32, CliError> {
             let engine = Engine::from_manifest_path(manifest)?;
             let mode = match mode.as_str() {
                 "mirror" => RunMode::Mirror,
-                other => {
-                    eprintln!("unsupported run mode: {other}");
-                    std::process::exit(9);
-                }
+                _ => return unsupported("run mode", &mode, &["mirror"]),
             };
             let report = engine.run(mode).await?;
             print!("{}", rewrit_report::terminal::render(&report));
@@ -97,7 +102,18 @@ async fn run(cli: Cli) -> Result<i32, CliError> {
             commands::explain::print(result);
             0
         }
-        Commands::Schema { command } => commands::schema::run(command)?,
+        Commands::Schema { command } => {
+            match &command {
+                SchemaCommand::Export { kind } => {
+                    ensure_supported(
+                        "schema kind",
+                        kind,
+                        &["report", "contract", "observation", "event"],
+                    )?;
+                }
+            }
+            commands::schema::run(command)?
+        }
         Commands::Report { command } => commands::report::run(command)?,
     };
 
@@ -108,6 +124,12 @@ async fn run(cli: Cli) -> Result<i32, CliError> {
 enum CliError {
     #[error("{0}")]
     Engine(#[from] EngineError),
+    #[error("unsupported {what}: {value}. expected one of: {expected}")]
+    UnsupportedFeature {
+        what: &'static str,
+        value: String,
+        expected: String,
+    },
     #[error("{0}")]
     Json(#[from] serde_json::Error),
     #[error("{0}")]
@@ -118,8 +140,48 @@ impl CliError {
     fn exit_code(&self) -> i32 {
         match self {
             Self::Engine(error) => error.exit_code(),
+            Self::UnsupportedFeature { .. } => 9,
             Self::Json(_) => 70,
             Self::Io(_) => 7,
         }
+    }
+}
+
+fn ensure_supported(
+    what: &'static str,
+    value: &str,
+    supported: &[&'static str],
+) -> Result<(), CliError> {
+    if supported.contains(&value) {
+        Ok(())
+    } else {
+        unsupported(what, value, supported)
+    }
+}
+
+fn unsupported<T>(
+    what: &'static str,
+    value: &str,
+    supported: &[&'static str],
+) -> Result<T, CliError> {
+    Err(CliError::UnsupportedFeature {
+        what,
+        value: value.to_string(),
+        expected: supported.join(", "),
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unsupported_feature_uses_feature_exit_code() {
+        let error = ensure_supported("run mode", "baseline", &["mirror"]).expect_err("error");
+        assert_eq!(error.exit_code(), 9);
+        assert_eq!(
+            error.to_string(),
+            "unsupported run mode: baseline. expected one of: mirror"
+        );
     }
 }
