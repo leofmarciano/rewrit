@@ -16,4 +16,5 @@ pub mod pest {
 
 pub mod phpunit {
     pub const EXTENSION: &str = "Rewrit\\PHPUnitExtension";
+    pub const CASE_TRAIT: &str = "Rewrit\\PHPUnitCase";
 }
