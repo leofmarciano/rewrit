@@ -1,9 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Rewrit;
 
-final class PestPlugin
+trait PestPlugin
 {
-    public const METHOD = 'rewrit';
-}
+    public function rewrit(string $caseId, ?string $suiteId = null): static
+    {
+        Rewrit::case($caseId, $suiteId);
 
+        return $this;
+    }
+}

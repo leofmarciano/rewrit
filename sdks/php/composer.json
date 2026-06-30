@@ -6,10 +6,10 @@
   "autoload": {
     "psr-4": {
       "Rewrit\\": "src/"
-    }
+    },
+    "files": ["src/Autoload.php"]
   },
   "require": {
     "php": ">=8.2"
   }
 }
-

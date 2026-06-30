@@ -127,7 +127,7 @@ runtime/framework specific code
 - [x] Node SDK package skeleton.
 - [x] Python SDK package skeleton.
 - [x] Rust SDK package skeleton.
-- [ ] Pest plugin with `rewrit(case_id)`.
+- [x] Pest plugin with `rewrit(case_id)`.
 - [ ] PHPUnit extension.
 - [ ] Laravel helpers for HTTP response and DB deltas.
 - [ ] Vitest reporter and `test.rewrit`.
