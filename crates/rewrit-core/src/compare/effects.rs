@@ -77,7 +77,10 @@ fn normalize_row(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rewrit_model::{CanonicalValue, DbMap};
+    use rewrit_model::{
+        CacheOperation, CanonicalValue, DbMap, EmailEmission, EventEmission, FileDelta,
+        FileOperation, LogRecord, QueueMessage,
+    };
 
     #[test]
     fn maps_candidate_db_delta_table_and_fields_to_reference_shape() {
@@ -116,6 +119,60 @@ mod tests {
         };
 
         assert!(effects_equivalent(&reference, &candidate, &policy));
+    }
+
+    #[test]
+    fn compares_non_db_effect_variants_by_canonical_equality() {
+        let reference = vec![
+            Effect::FileDelta(FileDelta {
+                path: "out/report.json".to_string(),
+                operation: FileOperation::Created,
+                sha256: Some("abc".to_string()),
+            }),
+            Effect::QueueMessage(QueueMessage {
+                queue: "billing".to_string(),
+                topic: Some("invoice.created".to_string()),
+                payload: text("inv_123"),
+            }),
+            Effect::Event(EventEmission {
+                name: "InvoiceCreated".to_string(),
+                payload: text("inv_123"),
+            }),
+            Effect::Email(EmailEmission {
+                to: vec!["customer@example.com".to_string()],
+                subject: "Invoice".to_string(),
+                body: Some("created".to_string()),
+            }),
+            Effect::CacheOperation(CacheOperation {
+                operation: "set".to_string(),
+                key: "invoice:inv_123".to_string(),
+                value: Some(text("open")),
+            }),
+            Effect::Log(LogRecord {
+                level: "info".to_string(),
+                message: "invoice created".to_string(),
+                fields: BTreeMap::from([("invoice_id".to_string(), "inv_123".to_string())]),
+            }),
+        ];
+        let mut candidate = reference.clone();
+
+        assert!(effects_equivalent(
+            &reference,
+            &candidate,
+            &Policy::default()
+        ));
+
+        candidate[1] = Effect::QueueMessage(QueueMessage {
+            queue: "billing".to_string(),
+            topic: Some("invoice.created".to_string()),
+            payload: text("inv_456"),
+        });
+
+        assert!(!effects_equivalent(
+            &reference,
+            &candidate,
+            &Policy::default()
+        ));
     }
 
     fn text(value: &str) -> CanonicalValue {

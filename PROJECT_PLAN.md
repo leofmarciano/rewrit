@@ -69,7 +69,7 @@ runtime/framework specific code
 - [x] Implement path-scoped normalizer application for configured paths.
 - [x] Implement JSON unordered array paths.
 - [x] Implement DB delta field/table mapping in comparison.
-- [ ] Implement queue/event/file/cache/email/log comparators.
+- [x] Implement queue/event/file/cache/email/log comparators.
 - [x] Add property tests for idempotent normalization and `compare(a, a)`.
 
 ### 4. Engine
