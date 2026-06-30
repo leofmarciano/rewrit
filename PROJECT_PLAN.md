@@ -180,7 +180,7 @@ runtime/framework specific code
 - [x] HTTP adapter integration test.
 - [x] Snapshot tests for report formats.
 - [x] Property tests for core invariants.
-- [ ] E2E fixtures for PHP/Node/Python/Rust SDKs.
+- [x] E2E fixtures for PHP/Node/Python/Rust SDKs.
 
 ## Milestones
 
