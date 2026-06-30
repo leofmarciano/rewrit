@@ -117,6 +117,26 @@ pub enum EngineError {
     Io(#[from] std::io::Error),
 }
 
+impl EngineError {
+    #[must_use]
+    pub fn exit_code(&self) -> i32 {
+        match self {
+            Self::ReadManifest { .. }
+            | Self::ParseManifest { .. }
+            | Self::InvalidManifest(_)
+            | Self::ReadContract { .. }
+            | Self::ParseContract { .. } => 2,
+            Self::Protocol { .. } | Self::HttpAdapter { .. } => 4,
+            Self::RuntimeNotFound(_)
+            | Self::RuntimeFailed { .. }
+            | Self::StartServer { .. }
+            | Self::Baseline(_) => 5,
+            Self::Report(_) => 7,
+            Self::Io(_) => 70,
+        }
+    }
+}
+
 pub struct Engine {
     pub options: EngineOptions,
     pub manifest: Manifest,
