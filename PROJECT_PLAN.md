@@ -134,7 +134,7 @@ runtime/framework specific code
 - [x] Jest reporter.
 - [x] Encore helper(you will need to search about [encore.dev](http://encore.dev) ! its a runtime dont have .env and some props).
 - [x] Pytest plugin collection hooks.
-- [ ] Django helpers.
+- [x] Django helpers.
 - [ ] Rust cargo-test adapter and explicit helper.
 - [ ] Rust `#[rewrit::case]` macro.
 

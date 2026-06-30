@@ -3,6 +3,10 @@ from __future__ import annotations
 import json
 import os
 import sys
+from base64 import b64encode
+from collections.abc import Mapping
+from datetime import date, datetime
+from decimal import Decimal
 from functools import wraps
 from pathlib import Path
 from typing import Any, Callable
@@ -12,6 +16,7 @@ import pytest
 _current_case_id: str | None = None
 _current_suite_id: str | None = None
 _observed_cases: set[str] = set()
+_last_observation: dict[str, Any] | None = None
 
 
 def rewrit_case(case_id: str, suite_id: str | None = None, title: str | None = None):
@@ -29,30 +34,70 @@ def rewrit_case(case_id: str, suite_id: str | None = None, title: str | None = N
     return decorator
 
 
-def emit_observation(value: Any = None, case_id: str | None = None, status: str = "passed", effects: list[dict[str, Any]] | None = None):
+def emit_observation(
+    value: Any = None,
+    case_id: str | None = None,
+    status: str = "passed",
+    effects: list[dict[str, Any]] | None = None,
+):
+    emit_canonical_observation(
+        None if value is None else {"kind": "json", "value": value},
+        case_id,
+        status,
+        effects,
+    )
+
+
+def emit_canonical_observation(
+    value: dict[str, Any] | None = None,
+    case_id: str | None = None,
+    status: str = "passed",
+    effects: list[dict[str, Any]] | None = None,
+):
+    global _last_observation
     case_id = case_id or _current_case_id
     if case_id is None:
         raise RuntimeError("Rewrit case id is missing. Use @rewrit_case(...) or pytest.mark.rewrit_case(...).")
 
+    event = observation_event(case_id, value, status, effects or [])
     _observed_cases.add(case_id)
-    emit_event(
-        {
-            "schema_version": "rewrit.event.v1",
-            "kind": "observation",
-            "case_id": case_id,
-            "runtime_id": runtime_id(),
-            "status": status,
-            "value": None if value is None else {"kind": "json", "value": value},
-            "error": None,
-            "stdout": {"text": "", "truncated": False},
-            "stderr": {"text": "", "truncated": False},
-            "exit_code": 0,
-            "duration_ms": 0,
-            "effects": effects or [],
-            "artifacts": [],
-            "metadata": {} if _current_suite_id is None else {"suite_id": _current_suite_id},
-        }
-    )
+    _last_observation = event
+    emit_event(event)
+
+
+def add_effect(effect: dict[str, Any], case_id: str | None = None):
+    global _last_observation
+    case_id = case_id or _current_case_id
+    if case_id is None:
+        raise RuntimeError("Rewrit case id is missing. Use @rewrit_case(...) or pytest.mark.rewrit_case(...).")
+
+    if _last_observation is not None and _last_observation.get("case_id") == case_id:
+        effects = list(_last_observation.get("effects", []))
+        effects.append(effect)
+        _last_observation = {**_last_observation, "effects": effects}
+        emit_event(_last_observation)
+        return
+
+    emit_canonical_observation(None, case_id, "passed", [effect])
+
+
+def observation_event(case_id: str, value: dict[str, Any] | None, status: str, effects: list[dict[str, Any]]):
+    return {
+        "schema_version": "rewrit.event.v1",
+        "kind": "observation",
+        "case_id": case_id,
+        "runtime_id": runtime_id(),
+        "status": status,
+        "value": value,
+        "error": None,
+        "stdout": {"text": "", "truncated": False},
+        "stderr": {"text": "", "truncated": False},
+        "exit_code": 0,
+        "duration_ms": 0,
+        "effects": effects,
+        "artifacts": [],
+        "metadata": {} if _current_suite_id is None else {"suite_id": _current_suite_id},
+    }
 
 
 def emit_case_discovered(case_id: str, suite_id: str | None = None, title: str | None = None, source_path: str | None = None, line: int | None = None):
@@ -88,6 +133,32 @@ def emit_event(event: dict[str, Any]):
 
 def runtime_id() -> str:
     return os.environ.get("REWRIT_RUNTIME_ID", "reference")
+
+
+def canonical_value(value: Any) -> dict[str, Any]:
+    if value is None:
+        return {"kind": "null"}
+    if isinstance(value, bool):
+        return {"kind": "bool", "value": value}
+    if isinstance(value, int):
+        return {"kind": "integer", "value": str(value)}
+    if isinstance(value, Decimal):
+        return {"kind": "decimal", "value": str(value)}
+    if isinstance(value, float):
+        return {"kind": "float", "value": str(value)}
+    if isinstance(value, str):
+        return {"kind": "string", "value": value}
+    if isinstance(value, bytes | bytearray):
+        return {"kind": "bytes", "base64": b64encode(value).decode("ascii"), "media_type": None}
+    if isinstance(value, datetime):
+        return {"kind": "date_time", "rfc3339": value.isoformat()}
+    if isinstance(value, date):
+        return {"kind": "string", "value": value.isoformat()}
+    if isinstance(value, Mapping):
+        return {"kind": "object", "fields": {str(key): canonical_value(entry) for key, entry in value.items()}}
+    if isinstance(value, list | tuple):
+        return {"kind": "array", "items": [canonical_value(entry) for entry in value]}
+    return {"kind": "string", "value": str(value)}
 
 
 def pytest_configure(config: pytest.Config):
