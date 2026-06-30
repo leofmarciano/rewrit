@@ -15,6 +15,8 @@ use std::fs::OpenOptions;
 use std::io::Write;
 use std::sync::{Mutex, OnceLock};
 
+pub use rewrit_macros::case;
+
 #[derive(Debug, Default)]
 struct State {
     current_case_id: Option<CaseId>,
@@ -250,5 +252,5 @@ fn suite_from_case_id(case_id: &str) -> String {
 }
 
 pub mod macros {
-    pub const FUTURE_CASE_MACRO: &str = "#[rewrit::case]";
+    pub const CASE_MACRO: &str = "#[rewrit::case]";
 }

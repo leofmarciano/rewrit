@@ -1275,6 +1275,7 @@ dependencies = [
 name = "rewrit"
 version = "0.1.0"
 dependencies = [
+ "rewrit-macros",
  "rewrit-model",
  "rewrit-protocol",
  "serde",
@@ -1394,6 +1395,14 @@ dependencies = [
  "toml",
  "tracing",
  "uuid",
+]
+
+[[package]]
+name = "rewrit-macros"
+version = "0.1.0"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]

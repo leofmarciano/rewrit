@@ -136,7 +136,7 @@ runtime/framework specific code
 - [x] Pytest plugin collection hooks.
 - [x] Django helpers.
 - [x] Rust cargo-test adapter and explicit helper.
-- [ ] Rust `#[rewrit::case]` macro.
+- [x] Rust `#[rewrit::case]` macro.
 
 ### 8. Operation Modes
 
