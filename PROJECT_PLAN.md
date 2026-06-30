@@ -212,16 +212,16 @@ Acceptance:
 
 Acceptance:
 
-- [ ] `rewrit init --template laravel-to-encore` creates a working project
+- [x] `rewrit init --template laravel-to-encore` creates a working project
 
   template with SDK instructions.
-- [ ] PHP SDK emits Pest/PHPUnit/Laravel observations.
-- [ ] Node SDK emits Vitest/Jest/Encore observations.
-- [ ] Baseline generated from Laravel example.
-- [ ] Encore/TS candidate emits equivalent observations.
-- [ ] Missing Encore test is reported as `missing_candidate_case`.
-- [ ] Payload incompatibility is reported with path and hint.
-- [ ] JUnit and JSON reports are generated.
+- [x] PHP SDK emits Pest/PHPUnit/Laravel observations.
+- [x] Node SDK emits Vitest/Jest/Encore observations.
+- [x] Baseline generated from Laravel example.
+- [x] Encore/TS candidate emits equivalent observations.
+- [x] Missing Encore test is reported as `missing_candidate_case`.
+- [x] Payload incompatibility is reported with path and hint.
+- [x] JUnit and JSON reports are generated.
 
 ### MVP 4: Django To Rust
 

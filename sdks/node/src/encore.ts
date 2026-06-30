@@ -7,7 +7,7 @@ import {
   runtimeId,
   type CanonicalValue,
   type Effect,
-} from "./index";
+} from "./index.ts";
 
 export function encoreCase(caseId: string, suiteId?: string, title?: string) {
   caseDiscovered(caseId, suiteId, title);

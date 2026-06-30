@@ -1013,6 +1013,7 @@ impl Engine {
         let mut report =
             self.report_from_divergences("run", reference.cases, Vec::new(), divergences);
         report.suites = suite_summaries(&suite_by_case, &all_ids, &report.divergences);
+        report.summary.cases_discovered = report.summary.cases_discovered.max(all_ids.len());
         report.summary.cases_compared = all_ids.len();
         let blocking_case_ids = report
             .divergences

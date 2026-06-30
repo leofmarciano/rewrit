@@ -1,19 +1,30 @@
-import { caseDiscovered, emitEvent, observe, observeCanonical, runtimeId } from "./index";
-import { test as baseTest } from "vitest";
+import { caseDiscovered, emitEvent, observe, observeCanonical, runtimeId } from "./index.ts";
 
 type TestFn = (...args: unknown[]) => unknown | Promise<unknown>;
-type VitestTest = typeof baseTest & {
+type VitestBaseTest = (name: string, fn: TestFn) => unknown;
+type VitestTest = VitestBaseTest & {
   rewrit: (caseId: string, name: string, fn: TestFn) => unknown;
 };
 
-export const test = Object.assign(baseTest, {
-  rewrit(caseId: string, name: string, fn: TestFn) {
-    return baseTest(name, async (...args: unknown[]) => {
-      caseDiscovered(caseId, caseId.includes(".") ? caseId.slice(0, caseId.indexOf(".")) : "default", name);
-      return fn(...args);
-    });
-  },
-}) as VitestTest;
+export function createRewritTest(baseTest: VitestBaseTest): VitestTest {
+  return Object.assign(baseTest, {
+    rewrit(caseId: string, name: string, fn: TestFn) {
+      return baseTest(name, async (...args: unknown[]) => {
+        caseDiscovered(caseId, caseId.includes(".") ? caseId.slice(0, caseId.indexOf(".")) : "default", name);
+        return fn(...args);
+      });
+    },
+  }) as VitestTest;
+}
+
+export const test = createRewritTest((name: string, fn: TestFn) => {
+  const baseTest = (globalThis as unknown as { test?: VitestBaseTest }).test;
+  if (!baseTest) {
+    throw new Error("Vitest global test() is unavailable. Use createRewritTest(test) with the Vitest test API.");
+  }
+
+  return baseTest(name, fn);
+});
 
 export { observe, observeCanonical };
 

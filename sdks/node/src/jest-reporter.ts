@@ -1,4 +1,4 @@
-import { caseDiscovered, emitEvent, observe, observeCanonical, runtimeId } from "./index";
+import { caseDiscovered, emitEvent, observe, observeCanonical, runtimeId } from "./index.ts";
 
 type JestTestApi = (name: string, fn: () => unknown | Promise<unknown>) => unknown;
 

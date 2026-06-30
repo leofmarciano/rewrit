@@ -1,10 +1,9 @@
 # Node Vitest Adapter
 
-The Vitest adapter exposes a reporter and a `test.rewrit(case_id, name, fn)`
-helper.
+The Vitest adapter exposes a reporter and a `createRewritTest(test)` helper.
 
 ```ts
-import RewritVitestReporter, { observe, test } from "@rewrit/node/vitest-reporter";
+import RewritVitestReporter from "@rewrit/node/vitest-reporter";
 
 export default {
   test: {
@@ -16,7 +15,10 @@ export default {
 Use the helper in tests:
 
 ```ts
-import { observe, test } from "@rewrit/node/vitest-reporter";
+import { test as baseTest } from "vitest";
+import { createRewritTest, observe } from "@rewrit/node/vitest-reporter";
+
+const test = createRewritTest(baseTest);
 
 test.rewrit("billing.invoice.create.success", "creates an invoice", async () => {
   const response = {

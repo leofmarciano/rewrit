@@ -192,6 +192,10 @@ mod tests {
             comparison.divergences[0].path.as_deref(),
             Some("$.value.amount")
         );
+        assert!(comparison.divergences[0]
+            .hint
+            .as_deref()
+            .is_some_and(|hint| hint.contains("$.value.amount")));
     }
 
     #[test]

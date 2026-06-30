@@ -16,13 +16,15 @@ where
     T: Serialize + ?Sized,
     U: Serialize + ?Sized,
 {
+    let path = path.into();
+    let hint = divergence_hint(&kind, &path);
     Divergence {
         machine_code: format!("{kind:?}").to_ascii_lowercase(),
         kind,
         severity: Severity::Blocking,
         case_id,
         suite: ctx.suite.clone(),
-        path: Some(path.into()),
+        path: Some(path),
         reference: reference.and_then(|value| serde_json::to_value(value).ok()),
         candidate: candidate.and_then(|value| serde_json::to_value(value).ok()),
         message: message.into(),
@@ -30,9 +32,37 @@ where
         target_location: ctx.target_location.clone(),
         policy: Some(ctx.policy.name.clone()),
         normalizers_applied: ctx.normalizers_applied.clone(),
-        hint: None,
+        hint,
         minimal_reproduction: None,
     }
+}
+
+fn divergence_hint(kind: &DivergenceKind, path: &str) -> Option<String> {
+    let hint = match kind {
+        DivergenceKind::TypeMismatch => format!(
+            "Align the candidate value type at {path} with the reference observation or declare a scoped policy if this type difference is intentional."
+        ),
+        DivergenceKind::OutputMismatch => format!(
+            "Align the candidate output at {path} with the reference observation or add a scoped normalizer for known runtime noise."
+        ),
+        DivergenceKind::SideEffectMismatch => format!(
+            "Align the candidate side effects at {path} with the reference observation or add an explicit effect mapping."
+        ),
+        DivergenceKind::ExitCodeMismatch => {
+            "Make the candidate process exit code match the reference or disable exit-code comparison in policy.".to_string()
+        }
+        DivergenceKind::StdoutMismatch => {
+            "Make stdout deterministic or disable stdout comparison in policy.".to_string()
+        }
+        DivergenceKind::StderrMismatch => {
+            "Make stderr deterministic or disable stderr comparison in policy.".to_string()
+        }
+        DivergenceKind::ErrorMismatch => format!(
+            "Align the candidate error envelope at {path} with the reference error policy."
+        ),
+        _ => return None,
+    };
+    Some(hint)
 }
 
 #[must_use]
