@@ -71,6 +71,10 @@ timeout_ms = 30000
     assert!(reproduction
         .args
         .contains(&"billing.invoice.create.success".to_string()));
+    assert_eq!(report.suites.len(), 1);
+    assert_eq!(report.suites[0].suite_id, "billing");
+    assert_eq!(report.suites[0].cases_compared, 1);
+    assert_eq!(report.suites[0].blocking, 1);
 }
 
 #[tokio::test]

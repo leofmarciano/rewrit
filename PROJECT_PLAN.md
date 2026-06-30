@@ -101,7 +101,7 @@ runtime/framework specific code
 - [x] HTML report.
 - [x] Markdown report.
 - [x] Add richer minimal reproduction commands per divergence.
-- [ ] Add suite rollups and worst-suite sorting from real suite metadata.
+- [x] Add suite rollups and worst-suite sorting from real suite metadata.
 - [x] Add report snapshots.
 
 ### 6. CLI

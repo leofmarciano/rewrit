@@ -18,7 +18,7 @@ use rewrit_core::{CompareContext, StrictComparator};
 use rewrit_model::{
     CapturedText, Case, CaseId, CaseStatus, Contract, ContractRef, Divergence, DivergenceKind,
     MinimalReproduction, Observation, Report, ReportSummary, RuntimeId, Severity, SourceLocation,
-    SuiteId,
+    SuiteId, SuiteSummary,
 };
 use rewrit_protocol::{
     decode_events, encode_request_line, AdapterCommand, AdapterEvent, AdapterRequest,
@@ -371,13 +371,17 @@ impl Engine {
         let candidate = self
             .run_runtime(&self.manifest.project.candidate, AdapterCommand::Discover)
             .await?;
-        let divergences = self.audit_runs(&reference, &candidate);
-        let report = self.report_from_divergences(
+        let suite_by_case = suite_map(&reference.cases, &candidate.cases);
+        let all_ids = audit_case_ids(&reference, &candidate);
+        let mut divergences = self.audit_runs(&reference, &candidate);
+        attach_suites_to_divergences(&mut divergences, &suite_by_case);
+        let mut report = self.report_from_divergences(
             "audit",
             reference.cases,
             candidate.observations,
             divergences,
         );
+        report.suites = suite_summaries(&suite_by_case, &all_ids, &report.divergences);
         self.write_configured_reports(&report)?;
         Ok(report)
     }
@@ -872,6 +876,7 @@ impl Engine {
     }
 
     fn compare_runs(&self, reference: RuntimeRun, candidate: RuntimeRun) -> Report {
+        let suite_by_case = suite_map(&reference.cases, &candidate.cases);
         let reference_by_id: BTreeMap<CaseId, Observation> = reference
             .observations
             .into_iter()
@@ -922,7 +927,7 @@ impl Engine {
                         &candidate_norm.observation,
                         CompareContext {
                             policy: policy_engine.policy.clone(),
-                            suite: None,
+                            suite: suite_by_case.get(case_id).cloned(),
                             source_location: None,
                             target_location: None,
                             normalizers_applied: applied_names,
@@ -949,9 +954,11 @@ impl Engine {
                 (None, None) => {}
             }
         }
+        attach_suites_to_divergences(&mut divergences, &suite_by_case);
 
         let mut report =
             self.report_from_divergences("run", reference.cases, Vec::new(), divergences);
+        report.suites = suite_summaries(&suite_by_case, &all_ids, &report.divergences);
         report.summary.cases_compared = all_ids.len();
         let blocking_case_ids = report
             .divergences
@@ -1196,6 +1203,103 @@ impl Engine {
         policy.db_maps = self.manifest.effects.db.maps.clone();
         policy
     }
+}
+
+fn suite_map(reference_cases: &[Case], candidate_cases: &[Case]) -> BTreeMap<CaseId, String> {
+    let mut suites = BTreeMap::new();
+    for case in candidate_cases {
+        suites.insert(case.id.clone(), case.suite_id.to_string());
+    }
+    for case in reference_cases {
+        suites.insert(case.id.clone(), case.suite_id.to_string());
+    }
+    suites
+}
+
+fn audit_case_ids(reference: &RuntimeRun, candidate: &RuntimeRun) -> BTreeSet<CaseId> {
+    reference
+        .cases
+        .iter()
+        .map(|case| case.id.clone())
+        .chain(reference.observations.iter().map(|obs| obs.case_id.clone()))
+        .chain(candidate.cases.iter().map(|case| case.id.clone()))
+        .chain(candidate.observations.iter().map(|obs| obs.case_id.clone()))
+        .collect()
+}
+
+fn attach_suites_to_divergences(
+    divergences: &mut [Divergence],
+    suite_by_case: &BTreeMap<CaseId, String>,
+) {
+    for divergence in divergences {
+        if divergence.suite.is_none() {
+            divergence.suite = suite_by_case.get(&divergence.case_id).cloned();
+        }
+    }
+}
+
+fn suite_summaries(
+    suite_by_case: &BTreeMap<CaseId, String>,
+    all_case_ids: &BTreeSet<CaseId>,
+    divergences: &[Divergence],
+) -> Vec<SuiteSummary> {
+    let mut cases_by_suite: BTreeMap<String, BTreeSet<CaseId>> = BTreeMap::new();
+    for case_id in all_case_ids {
+        if let Some(suite_id) = suite_by_case.get(case_id) {
+            cases_by_suite
+                .entry(suite_id.clone())
+                .or_default()
+                .insert(case_id.clone());
+        }
+    }
+
+    let mut blocking_by_suite: BTreeMap<String, BTreeSet<CaseId>> = BTreeMap::new();
+    for divergence in divergences
+        .iter()
+        .filter(|divergence| matches!(divergence.severity, Severity::Blocking))
+    {
+        let suite_id = divergence
+            .suite
+            .clone()
+            .or_else(|| suite_by_case.get(&divergence.case_id).cloned());
+        if let Some(suite_id) = suite_id {
+            blocking_by_suite
+                .entry(suite_id)
+                .or_default()
+                .insert(divergence.case_id.clone());
+        }
+    }
+
+    let mut summaries = cases_by_suite
+        .into_iter()
+        .map(|(suite_id, case_ids)| {
+            let cases_compared = case_ids.len();
+            let blocking = blocking_by_suite
+                .get(&suite_id)
+                .map_or(0, BTreeSet::len)
+                .min(cases_compared);
+            let equivalent = cases_compared.saturating_sub(blocking);
+            SuiteSummary {
+                suite_id,
+                cases_compared,
+                equivalent,
+                blocking,
+                parity_ratio: if cases_compared == 0 {
+                    0.0
+                } else {
+                    equivalent as f64 / cases_compared as f64
+                },
+            }
+        })
+        .collect::<Vec<_>>();
+
+    summaries.sort_by(|left, right| {
+        left.parity_ratio
+            .partial_cmp(&right.parity_ratio)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| left.suite_id.cmp(&right.suite_id))
+    });
+    summaries
 }
 
 fn validate_manifest(manifest: &Manifest) -> Result<(), EngineError> {
