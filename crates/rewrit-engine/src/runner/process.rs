@@ -13,6 +13,7 @@ pub struct RuntimeProcess {
     pub command: Vec<String>,
     pub cwd: PathBuf,
     pub env: BTreeMap<String, String>,
+    pub temp_dir: Option<PathBuf>,
     pub timeout_ms: u64,
     pub max_stdout_bytes: usize,
     pub max_stderr_bytes: usize,
@@ -65,6 +66,7 @@ impl ProcessRunner {
                 .map(|cwd| root.join(cwd))
                 .unwrap_or_else(|| root.to_path_buf()),
             env: runtime.env.clone(),
+            temp_dir: None,
             timeout_ms: runtime
                 .timeout_ms
                 .or(self.runner.default_timeout_ms)
@@ -74,7 +76,12 @@ impl ProcessRunner {
         }
     }
 
-    pub fn apply_environment(&self, command: &mut Command, runtime_env: &BTreeMap<String, String>) {
+    pub fn apply_environment(
+        &self,
+        command: &mut Command,
+        runtime_env: &BTreeMap<String, String>,
+        temp_dir: Option<&Path>,
+    ) {
         if !self.env_allowlist.is_empty() {
             command.env_clear();
             for (key, value) in std::env::vars() {
@@ -84,6 +91,12 @@ impl ProcessRunner {
             }
         }
         command.envs(runtime_env);
+        if let Some(temp_dir) = temp_dir {
+            command
+                .env("TMPDIR", temp_dir)
+                .env("TMP", temp_dir)
+                .env("TEMP", temp_dir);
+        }
     }
 
     pub async fn run(&self, process: &RuntimeProcess) -> Result<ProcessOutput, ProcessError> {
@@ -99,7 +112,10 @@ impl ProcessRunner {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .kill_on_drop(self.runner.kill_process_tree);
-        self.apply_environment(&mut command, &process.env);
+        if let Some(temp_dir) = &process.temp_dir {
+            std::fs::create_dir_all(temp_dir)?;
+        }
+        self.apply_environment(&mut command, &process.env, process.temp_dir.as_deref());
 
         let child = command.spawn()?;
         let output = match timeout(millis(process.timeout_ms), child.wait_with_output()).await {
@@ -171,6 +187,7 @@ mod tests {
             command: vec!["/usr/bin/env".to_string()],
             cwd: std::env::current_dir().expect("cwd"),
             env: BTreeMap::from([("REWRIT_RUNTIME_TEST_ENV".to_string(), "runtime".to_string())]),
+            temp_dir: None,
             timeout_ms: 30_000,
             max_stdout_bytes: 1_048_576,
             max_stderr_bytes: 1_048_576,
@@ -189,5 +206,31 @@ mod tests {
             std::env::remove_var("REWRIT_ALLOWLISTED_TEST_ENV");
             std::env::remove_var("REWRIT_BLOCKED_TEST_ENV");
         }
+    }
+
+    #[tokio::test]
+    async fn temp_dir_is_created_and_injected_into_runtime_env() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let runtime_temp = temp.path().join("runtime-tmp");
+        let runner = ProcessRunner::new(RunnerConfig::default(), &SecurityConfig::default());
+        let process = RuntimeProcess {
+            command: vec!["/usr/bin/env".to_string()],
+            cwd: std::env::current_dir().expect("cwd"),
+            env: BTreeMap::new(),
+            temp_dir: Some(runtime_temp.clone()),
+            timeout_ms: 30_000,
+            max_stdout_bytes: 1_048_576,
+            max_stderr_bytes: 1_048_576,
+        };
+
+        let output = runner.run(&process).await.expect("run");
+
+        assert!(runtime_temp.is_dir());
+        assert!(output
+            .stdout
+            .contains(&format!("TMPDIR={}", runtime_temp.display())));
+        assert!(output
+            .stdout
+            .contains(&format!("TEMP={}", runtime_temp.display())));
     }
 }

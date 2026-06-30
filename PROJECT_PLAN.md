@@ -157,7 +157,7 @@ runtime/framework specific code
 - [x] Stdout/stderr byte limits.
 - [x] Env allowlist enforcement.
 - [ ] Network control configuration.
-- [ ] Temp dir isolation per run.
+- [x] Temp dir isolation per run.
 - [ ] Optional Docker/Podman sandbox after MVP.
 
 ### 11. Quality Gates

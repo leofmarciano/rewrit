@@ -48,6 +48,14 @@ impl RewritStore {
         writeln!(file, "pid={}", std::process::id())?;
         Ok(StoreLock { path })
     }
+
+    pub fn create_temp_dir(&self, name: &str) -> std::io::Result<PathBuf> {
+        let tmp_root = self.root.join("tmp");
+        std::fs::create_dir_all(&tmp_root)?;
+        let path = tmp_root.join(format!("{}-{}", lock_name(name), uuid::Uuid::now_v7()));
+        std::fs::create_dir_all(&path)?;
+        Ok(path)
+    }
 }
 
 impl Drop for StoreLock {
@@ -89,5 +97,20 @@ mod tests {
 
         drop(lock);
         let _third = store.acquire_lock("reports").expect("third lock");
+    }
+
+    #[test]
+    fn create_temp_dir_creates_unique_directory_under_store_tmp() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let store = RewritStore::new(temp.path(), None, None);
+        store.ensure().expect("store");
+
+        let first = store.create_temp_dir("runtime/reference").expect("first");
+        let second = store.create_temp_dir("runtime/reference").expect("second");
+
+        assert!(first.is_dir());
+        assert!(second.is_dir());
+        assert_ne!(first, second);
+        assert!(first.starts_with(store.root.join("tmp")));
     }
 }

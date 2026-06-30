@@ -688,6 +688,9 @@ Entries may be exact names or prefix patterns ending in `*`.
 env_allowlist = ["PATH", "HOME", "CI", "REWRIT_*"]
 ```
 
+Each runtime execution also receives an isolated temp directory under
+`.rewrit/tmp` through `TMPDIR`, `TMP`, and `TEMP`.
+
 Container sandboxing can come later. It should not block the core parity engine
 MVP.
 

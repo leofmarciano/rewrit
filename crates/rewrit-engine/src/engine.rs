@@ -339,7 +339,11 @@ impl Engine {
         runtime_id: &RuntimeId,
         runtime: &RuntimeConfig,
     ) -> Result<RuntimeRun, EngineError> {
-        let process = self.runner.from_runtime(&self.options.root, runtime);
+        let mut process = self.runner.from_runtime(&self.options.root, runtime);
+        process.temp_dir = Some(
+            self.store
+                .create_temp_dir(&format!("runtime-{runtime_id}"))?,
+        );
         let output =
             self.runner
                 .run(&process)
@@ -624,6 +628,9 @@ impl Engine {
             .map(|cwd| self.options.root.join(cwd))
             .unwrap_or_else(|| self.options.root.clone());
         let mut command = Command::new(program);
+        let temp_dir = self
+            .store
+            .create_temp_dir(&format!("runtime-{runtime_id}-server"))?;
         command
             .args(args)
             .current_dir(cwd)
@@ -631,7 +638,8 @@ impl Engine {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .kill_on_drop(self.manifest.runner.kill_process_tree);
-        self.runner.apply_environment(&mut command, &runtime.env);
+        self.runner
+            .apply_environment(&mut command, &runtime.env, Some(&temp_dir));
 
         command
             .spawn()
