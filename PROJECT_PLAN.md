@@ -75,7 +75,7 @@ runtime/framework specific code
 - [x] Redact configured secret patterns.
 - [x] Write configured reports.
 - [x] Map failures to documented exit codes.
-- [ ] Persist timestamped baselines beside `current.jsonl`.
+- [x] Persist timestamped baselines beside `current.jsonl`.
 - [ ] Add global cancellation/timeout handling.
 - [ ] Add lock files to prevent concurrent writes to the same store.
 - [x] Validate contract expectations against observations and report
