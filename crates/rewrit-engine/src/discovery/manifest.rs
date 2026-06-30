@@ -44,10 +44,36 @@ pub struct RuntimeConfig {
     pub cwd: Option<String>,
     #[serde(default)]
     pub command: Vec<String>,
+    #[serde(default)]
+    pub protocol: AdapterProtocolConfig,
     pub timeout_ms: Option<u64>,
     #[serde(default)]
     pub env: BTreeMap<String, String>,
     pub server: Option<ServerConfig>,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AdapterProtocolConfig {
+    #[serde(default)]
+    pub input: AdapterProtocolInput,
+    #[serde(default)]
+    pub output: AdapterProtocolOutput,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AdapterProtocolInput {
+    #[default]
+    None,
+    File,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AdapterProtocolOutput {
+    #[default]
+    Stdout,
+    File,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

@@ -1,7 +1,8 @@
 use crate::discovery::manifest::{
-    Manifest as ManifestConfig, NetworkMode, PolicyConfig, ReportConfig, RuntimeConfig,
+    AdapterProtocolInput, AdapterProtocolOutput, Manifest as ManifestConfig, NetworkMode,
+    PolicyConfig, ReportConfig, RuntimeConfig,
 };
-use crate::runner::process::{ProcessError, ProcessRunner};
+use crate::runner::process::{ProcessError, ProcessRunner, RuntimeProcess};
 use crate::store::baseline;
 use crate::store::filesystem::RewritStore;
 use rewrit_adapter_http::HttpAdapterError;
@@ -17,7 +18,9 @@ use rewrit_model::{
     CapturedText, Case, CaseId, CaseStatus, Contract, ContractRef, Divergence, DivergenceKind,
     Observation, Report, ReportSummary, RuntimeId, Severity, SourceLocation, SuiteId,
 };
-use rewrit_protocol::{decode_events, AdapterEvent};
+use rewrit_protocol::{
+    decode_events, encode_request_line, AdapterCommand, AdapterEvent, AdapterRequest,
+};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -89,6 +92,19 @@ pub enum EngineError {
         #[source]
         source: rewrit_protocol::ProtocolError,
     },
+    #[error("failed to encode adapter request for runtime {runtime_id}: {source}")]
+    EncodeProtocolRequest {
+        runtime_id: RuntimeId,
+        #[source]
+        source: serde_json::Error,
+    },
+    #[error("failed to read adapter protocol output for runtime {runtime_id} at {path}: {source}")]
+    ReadProtocolOutput {
+        runtime_id: RuntimeId,
+        path: String,
+        #[source]
+        source: std::io::Error,
+    },
     #[error("failed to read contract {path}: {source}")]
     ReadContract {
         path: String,
@@ -126,13 +142,13 @@ impl EngineError {
             | Self::InvalidManifest(_)
             | Self::ReadContract { .. }
             | Self::ParseContract { .. } => 2,
-            Self::Protocol { .. } | Self::HttpAdapter { .. } => 4,
+            Self::Protocol { .. } | Self::ReadProtocolOutput { .. } | Self::HttpAdapter { .. } => 4,
             Self::RuntimeNotFound(_)
             | Self::RuntimeFailed { .. }
             | Self::StartServer { .. }
             | Self::Baseline(_) => 5,
             Self::Report(_) => 7,
-            Self::Io(_) => 70,
+            Self::EncodeProtocolRequest { .. } | Self::Io(_) => 70,
         }
     }
 }
@@ -195,7 +211,7 @@ impl Engine {
     pub async fn doctor(&self) -> Result<Report, EngineError> {
         let mut divergences = Vec::new();
         for runtime_id in self.manifest.runtimes.keys() {
-            if let Err(error) = self.run_runtime(runtime_id).await {
+            if let Err(error) = self.run_runtime(runtime_id, AdapterCommand::Doctor).await {
                 divergences.push(runtime_divergence(
                     runtime_id,
                     DivergenceKind::AdapterError,
@@ -214,21 +230,29 @@ impl Engine {
 
         let mut cases = Vec::new();
         for runtime_id in runtime_ids {
-            cases.extend(self.run_runtime(&runtime_id).await?.cases);
+            cases.extend(
+                self.run_runtime(&runtime_id, AdapterCommand::Discover)
+                    .await?
+                    .cases,
+            );
         }
         Ok(cases)
     }
 
     pub async fn run(&self, _mode: RunMode) -> Result<Report, EngineError> {
-        let reference = self.run_runtime(&self.manifest.project.reference).await?;
-        let candidate = self.run_runtime(&self.manifest.project.candidate).await?;
+        let reference = self
+            .run_runtime(&self.manifest.project.reference, AdapterCommand::Run)
+            .await?;
+        let candidate = self
+            .run_runtime(&self.manifest.project.candidate, AdapterCommand::Run)
+            .await?;
         let report = self.compare_runs(reference, candidate);
         self.write_configured_reports(&report)?;
         Ok(report)
     }
 
     pub async fn capture(&self, runtime_id: &RuntimeId) -> Result<Report, EngineError> {
-        let run = self.run_runtime(runtime_id).await?;
+        let run = self.run_runtime(runtime_id, AdapterCommand::Run).await?;
         let _baseline_lock = self
             .store
             .acquire_lock(&format!("baseline-{}", runtime_id.as_str()))?;
@@ -247,7 +271,7 @@ impl Engine {
             observations: baseline_observations,
             divergences: Vec::new(),
         };
-        let candidate = self.run_runtime(runtime_id).await?;
+        let candidate = self.run_runtime(runtime_id, AdapterCommand::Run).await?;
         let report = self.compare_runs(reference, candidate);
         self.write_configured_reports(&report)?;
         Ok(report)
@@ -273,7 +297,8 @@ impl Engine {
             )
             .await?
         } else {
-            self.run_runtime(&self.manifest.project.reference).await?
+            self.run_runtime(&self.manifest.project.reference, AdapterCommand::Run)
+                .await?
         };
         let candidate = if candidate_runtime.adapter.starts_with("http") {
             self.run_http_runtime(
@@ -283,7 +308,8 @@ impl Engine {
             )
             .await?
         } else {
-            self.run_runtime(&self.manifest.project.candidate).await?
+            self.run_runtime(&self.manifest.project.candidate, AdapterCommand::Run)
+                .await?
         };
         let report = self.compare_runs(reference, candidate);
         self.write_configured_reports(&report)?;
@@ -291,8 +317,12 @@ impl Engine {
     }
 
     pub async fn audit(&self) -> Result<Report, EngineError> {
-        let reference = self.run_runtime(&self.manifest.project.reference).await?;
-        let candidate = self.run_runtime(&self.manifest.project.candidate).await?;
+        let reference = self
+            .run_runtime(&self.manifest.project.reference, AdapterCommand::Discover)
+            .await?;
+        let candidate = self
+            .run_runtime(&self.manifest.project.candidate, AdapterCommand::Discover)
+            .await?;
         let divergences = self.audit_runs(&reference, &candidate);
         let report = self.report_from_divergences(
             "audit",
@@ -317,7 +347,11 @@ impl Engine {
         })
     }
 
-    async fn run_runtime(&self, runtime_id: &RuntimeId) -> Result<RuntimeRun, EngineError> {
+    async fn run_runtime(
+        &self,
+        runtime_id: &RuntimeId,
+        command: AdapterCommand,
+    ) -> Result<RuntimeRun, EngineError> {
         let runtime = self
             .manifest
             .runtimes
@@ -331,19 +365,22 @@ impl Engine {
             return Ok(RuntimeRun::default());
         }
 
-        self.run_command_runtime(runtime_id, runtime).await
+        self.run_command_runtime(runtime_id, runtime, command).await
     }
 
     async fn run_command_runtime(
         &self,
         runtime_id: &RuntimeId,
         runtime: &RuntimeConfig,
+        command: AdapterCommand,
     ) -> Result<RuntimeRun, EngineError> {
         let mut process = self.runner.from_runtime(&self.options.root, runtime);
         process.temp_dir = Some(
             self.store
                 .create_temp_dir(&format!("runtime-{runtime_id}"))?,
         );
+        let protocol_output_path =
+            self.prepare_command_protocol(&mut process, runtime_id, runtime, command)?;
         let output =
             self.runner
                 .run(&process)
@@ -381,7 +418,8 @@ impl Engine {
             });
         }
 
-        let events = decode_events(&output.stdout).map_err(|source| EngineError::Protocol {
+        let protocol_output = self.protocol_output(runtime_id, &output, protocol_output_path)?;
+        let events = decode_events(&protocol_output).map_err(|source| EngineError::Protocol {
             runtime_id: runtime_id.clone(),
             source,
         })?;
@@ -444,6 +482,85 @@ impl Engine {
         }
 
         Ok(run)
+    }
+
+    fn prepare_command_protocol(
+        &self,
+        process: &mut RuntimeProcess,
+        runtime_id: &RuntimeId,
+        runtime: &RuntimeConfig,
+        command: AdapterCommand,
+    ) -> Result<Option<PathBuf>, EngineError> {
+        let Some(temp_dir) = process.temp_dir.as_ref() else {
+            return Err(EngineError::InvalidManifest(format!(
+                "runtime {runtime_id} has no temp dir for adapter protocol files"
+            )));
+        };
+
+        process.env.insert(
+            "REWRIT_RUNTIME_ID".to_string(),
+            runtime_id.as_str().to_string(),
+        );
+        process.env.insert(
+            "REWRIT_ADAPTER_COMMAND".to_string(),
+            adapter_command_name(command).to_string(),
+        );
+        process.env.insert(
+            "REWRIT_PROTOCOL_INPUT".to_string(),
+            protocol_input_name(runtime.protocol.input).to_string(),
+        );
+        process.env.insert(
+            "REWRIT_PROTOCOL_OUTPUT".to_string(),
+            protocol_output_name(runtime.protocol.output).to_string(),
+        );
+
+        if matches!(runtime.protocol.input, AdapterProtocolInput::File) {
+            let request_path = temp_dir.join("adapter-request.ndjson");
+            let request = AdapterRequest::new(command, runtime_id.clone(), Vec::new());
+            let encoded = encode_request_line(&request).map_err(|source| {
+                EngineError::EncodeProtocolRequest {
+                    runtime_id: runtime_id.clone(),
+                    source,
+                }
+            })?;
+            std::fs::write(&request_path, encoded)?;
+            process.env.insert(
+                "REWRIT_REQUEST_PATH".to_string(),
+                request_path.display().to_string(),
+            );
+        }
+
+        if matches!(runtime.protocol.output, AdapterProtocolOutput::File) {
+            let events_path = temp_dir.join("adapter-events.ndjson");
+            process.env.insert(
+                "REWRIT_EVENTS_PATH".to_string(),
+                events_path.display().to_string(),
+            );
+            Ok(Some(events_path))
+        } else {
+            Ok(None)
+        }
+    }
+
+    fn protocol_output(
+        &self,
+        runtime_id: &RuntimeId,
+        output: &crate::runner::process::ProcessOutput,
+        protocol_output_path: Option<PathBuf>,
+    ) -> Result<String, EngineError> {
+        let Some(path) = protocol_output_path else {
+            return Ok(output.stdout.clone());
+        };
+
+        match std::fs::read_to_string(&path) {
+            Ok(contents) => Ok(contents),
+            Err(_source) if output.status_code.unwrap_or(0) != 0 => Ok(String::new()),
+            Err(source) => Err(EngineError::ReadProtocolOutput {
+                runtime_id: runtime_id.clone(),
+                path: path.display().to_string(),
+                source,
+            }),
+        }
     }
 
     async fn run_http_runtime(
@@ -1403,6 +1520,28 @@ pub fn exit_code_for_report(report: &Report) -> i32 {
         8
     } else {
         0
+    }
+}
+
+fn adapter_command_name(command: AdapterCommand) -> &'static str {
+    match command {
+        AdapterCommand::Doctor => "doctor",
+        AdapterCommand::Discover => "discover",
+        AdapterCommand::Run => "run",
+    }
+}
+
+fn protocol_input_name(input: AdapterProtocolInput) -> &'static str {
+    match input {
+        AdapterProtocolInput::None => "none",
+        AdapterProtocolInput::File => "file",
+    }
+}
+
+fn protocol_output_name(output: AdapterProtocolOutput) -> &'static str {
+    match output {
+        AdapterProtocolOutput::Stdout => "stdout",
+        AdapterProtocolOutput::File => "file",
     }
 }
 

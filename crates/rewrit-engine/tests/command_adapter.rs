@@ -62,6 +62,138 @@ timeout_ms = 30000
     }));
 }
 
+#[tokio::test]
+async fn command_adapter_reads_events_from_file_transport() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    write_executable(
+        &temp.path().join("reference.sh"),
+        r#"#!/usr/bin/env sh
+set -eu
+test "$REWRIT_PROTOCOL_INPUT" = "file"
+test "$REWRIT_PROTOCOL_OUTPUT" = "file"
+test -n "$REWRIT_REQUEST_PATH"
+test -n "$REWRIT_EVENTS_PATH"
+grep '"command":"run"' "$REWRIT_REQUEST_PATH" >/dev/null
+cat > "$REWRIT_EVENTS_PATH" <<'JSON'
+{"schema_version":"rewrit.event.v1","kind":"case_discovered","runtime_id":"reference","case":{"id":"billing.invoice.create.success","suite_id":"billing","title":"creates invoice","source_location":null,"tags":[],"contract_ref":null,"required":true}}
+{"schema_version":"rewrit.event.v1","kind":"observation","case_id":"billing.invoice.create.success","runtime_id":"reference","status":"passed","value":{"kind":"json","value":{"amount":"199.90"}},"error":null,"stdout":{"text":"","truncated":false},"stderr":{"text":"","truncated":false},"exit_code":0,"duration_ms":1,"effects":[],"artifacts":[],"metadata":{}}
+JSON
+"#,
+    );
+    write_executable(
+        &temp.path().join("candidate.sh"),
+        r#"#!/usr/bin/env sh
+set -eu
+test "$REWRIT_PROTOCOL_INPUT" = "file"
+test "$REWRIT_PROTOCOL_OUTPUT" = "file"
+test -n "$REWRIT_REQUEST_PATH"
+test -n "$REWRIT_EVENTS_PATH"
+grep '"command":"run"' "$REWRIT_REQUEST_PATH" >/dev/null
+cat > "$REWRIT_EVENTS_PATH" <<'JSON'
+{"schema_version":"rewrit.event.v1","kind":"case_discovered","runtime_id":"candidate","case":{"id":"billing.invoice.create.success","suite_id":"billing","title":"creates invoice","source_location":null,"tags":[],"contract_ref":null,"required":true}}
+{"schema_version":"rewrit.event.v1","kind":"observation","case_id":"billing.invoice.create.success","runtime_id":"candidate","status":"passed","value":{"kind":"json","value":{"amount":"199.90"}},"error":null,"stdout":{"text":"","truncated":false},"stderr":{"text":"","truncated":false},"exit_code":0,"duration_ms":1,"effects":[],"artifacts":[],"metadata":{}}
+JSON
+"#,
+    );
+    fs::write(
+        temp.path().join("rewrit.toml"),
+        r#"[project]
+name = "command-file-test"
+reference = "reference"
+candidate = "candidate"
+reports_dir = ".rewrit/reports"
+baselines_dir = ".rewrit/baselines"
+
+[runtimes.reference]
+adapter = "command"
+command = ["./reference.sh"]
+timeout_ms = 30000
+
+[runtimes.reference.protocol]
+input = "file"
+output = "file"
+
+[runtimes.candidate]
+adapter = "command"
+command = ["./candidate.sh"]
+timeout_ms = 30000
+
+[runtimes.candidate.protocol]
+input = "file"
+output = "file"
+"#,
+    )
+    .expect("manifest");
+
+    let engine = Engine::from_manifest_path(temp.path().join("rewrit.toml")).expect("engine");
+    let report = engine.run(RunMode::Mirror).await.expect("run");
+
+    assert_eq!(report.summary.exit_code, 0);
+    assert_eq!(report.summary.cases_compared, 1);
+}
+
+#[tokio::test]
+async fn command_adapter_writes_discover_request_to_file_transport() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    write_executable(
+        &temp.path().join("reference.sh"),
+        r#"#!/usr/bin/env sh
+set -eu
+grep '"command":"discover"' "$REWRIT_REQUEST_PATH" >/dev/null
+cat > "$REWRIT_EVENTS_PATH" <<'JSON'
+{"schema_version":"rewrit.event.v1","kind":"case_discovered","runtime_id":"reference","case":{"id":"billing.invoice.create.success","suite_id":"billing","title":"creates invoice","source_location":null,"tags":[],"contract_ref":null,"required":true}}
+JSON
+"#,
+    );
+    write_executable(
+        &temp.path().join("candidate.sh"),
+        r#"#!/usr/bin/env sh
+set -eu
+cat > "$REWRIT_EVENTS_PATH" <<'JSON'
+{"schema_version":"rewrit.event.v1","kind":"case_discovered","runtime_id":"candidate","case":{"id":"billing.invoice.create.success","suite_id":"billing","title":"creates invoice","source_location":null,"tags":[],"contract_ref":null,"required":true}}
+JSON
+"#,
+    );
+    fs::write(
+        temp.path().join("rewrit.toml"),
+        r#"[project]
+name = "command-discover-file-test"
+reference = "reference"
+candidate = "candidate"
+reports_dir = ".rewrit/reports"
+baselines_dir = ".rewrit/baselines"
+
+[runtimes.reference]
+adapter = "command"
+command = ["./reference.sh"]
+timeout_ms = 30000
+
+[runtimes.reference.protocol]
+input = "file"
+output = "file"
+
+[runtimes.candidate]
+adapter = "command"
+command = ["./candidate.sh"]
+timeout_ms = 30000
+
+[runtimes.candidate.protocol]
+input = "file"
+output = "file"
+"#,
+    )
+    .expect("manifest");
+
+    let engine = Engine::from_manifest_path(temp.path().join("rewrit.toml")).expect("engine");
+    let cases = engine
+        .discover(Some(&rewrit_model::RuntimeId::new("reference")))
+        .await
+        .expect("discover");
+
+    assert_eq!(cases.len(), 1);
+    assert_eq!(cases[0].id.as_str(), "billing.invoice.create.success");
+}
+
 fn write_executable(path: &Path, contents: &str) {
     let mut file = fs::File::create(path).expect("create script");
     file.write_all(contents.as_bytes()).expect("write script");

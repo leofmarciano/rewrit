@@ -1,3 +1,4 @@
+use crate::adapter::AdapterRequest;
 use crate::events::AdapterEvent;
 use crate::version::EVENT_SCHEMA_VERSION;
 use thiserror::Error;
@@ -18,6 +19,12 @@ pub enum ProtocolError {
 
 pub fn encode_event_line(event: &AdapterEvent) -> Result<String, serde_json::Error> {
     let mut encoded = serde_json::to_string(event)?;
+    encoded.push('\n');
+    Ok(encoded)
+}
+
+pub fn encode_request_line(request: &AdapterRequest) -> Result<String, serde_json::Error> {
+    let mut encoded = serde_json::to_string(request)?;
     encoded.push('\n');
     Ok(encoded)
 }
@@ -68,12 +75,26 @@ pub fn decode_events(input: &str) -> Result<Vec<AdapterEvent>, ProtocolError> {
 
 #[cfg(test)]
 mod tests {
-    use super::decode_events;
+    use super::{decode_events, encode_request_line};
+    use crate::{AdapterCommand, AdapterRequest};
+    use rewrit_model::RuntimeId;
 
     #[test]
     fn decodes_observation_event() {
         let input = r#"{"schema_version":"rewrit.event.v1","kind":"observation","case_id":"case.one","runtime_id":"reference","status":"passed","value":null,"error":null,"stdout":{"text":"","truncated":false},"stderr":{"text":"","truncated":false},"exit_code":0,"duration_ms":1,"effects":[],"artifacts":[],"metadata":{}}"#;
         let events = decode_events(input).unwrap();
         assert_eq!(events.len(), 1);
+    }
+
+    #[test]
+    fn encodes_request_as_single_ndjson_line() {
+        let request =
+            AdapterRequest::new(AdapterCommand::Run, RuntimeId::new("reference"), Vec::new());
+
+        let encoded = encode_request_line(&request).unwrap();
+
+        assert!(encoded.ends_with('\n'));
+        assert!(encoded.contains(r#""schema_version":"rewrit.adapter_request.v1""#));
+        assert!(encoded.contains(r#""command":"run""#));
     }
 }

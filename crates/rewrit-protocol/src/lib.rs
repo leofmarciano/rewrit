@@ -9,7 +9,9 @@ pub mod version;
 
 pub use adapter::{AdapterCommand, AdapterRequest};
 pub use events::{AdapterEvent, DoctorReport};
-pub use ndjson::{decode_event_line, decode_events, encode_event_line, ProtocolError};
+pub use ndjson::{
+    decode_event_line, decode_events, encode_event_line, encode_request_line, ProtocolError,
+};
 pub use version::{
     ADAPTER_REQUEST_SCHEMA_VERSION, EVENT_SCHEMA_VERSION, OBSERVATION_SCHEMA_VERSION,
     REPORT_SCHEMA_VERSION,
