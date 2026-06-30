@@ -1347,6 +1347,7 @@ dependencies = [
  "rewrit-report",
  "schemars",
  "serde_json",
+ "tempfile",
  "thiserror",
  "tokio",
  "tracing",

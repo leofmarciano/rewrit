@@ -104,15 +104,23 @@ async fn run(cli: Cli) -> Result<i32, CliError> {
         }
         Commands::Schema { command } => {
             match &command {
-                SchemaCommand::Export { kind } => {
+                SchemaCommand::Export { kind, .. } => {
                     ensure_supported(
                         "schema kind",
                         kind,
-                        &["report", "contract", "observation", "event"],
+                        &[
+                            "report",
+                            "contract",
+                            "observation",
+                            "event",
+                            "adapter_request",
+                            "adapter-request",
+                            "all",
+                        ],
                     )?;
                 }
             }
-            commands::schema::run(command)?
+            commands::schema::run(command).map_err(CliError::from)?
         }
         Commands::Report { command } => commands::report::run(command)?,
         Commands::Completions { shell } => commands::completions::run(shell)?,
@@ -136,6 +144,15 @@ enum CliError {
     Json(#[from] serde_json::Error),
     #[error("{0}")]
     Io(#[from] std::io::Error),
+}
+
+impl From<commands::schema::SchemaExportError> for CliError {
+    fn from(error: commands::schema::SchemaExportError) -> Self {
+        match error {
+            commands::schema::SchemaExportError::Json(error) => Self::Json(error),
+            commands::schema::SchemaExportError::Io(error) => Self::Io(error),
+        }
+    }
 }
 
 impl CliError {

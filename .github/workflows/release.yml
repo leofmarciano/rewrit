@@ -10,4 +10,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo test --workspace --all-features
-
+      - run: cargo run -p rewrit-cli -- schema export --kind all --out-dir dist/schemas
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rewrit-protocol-schemas
+          path: dist/schemas/*.schema.json

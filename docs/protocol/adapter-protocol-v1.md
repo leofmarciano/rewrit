@@ -43,3 +43,21 @@ REWRIT_ADAPTER_COMMAND
 REWRIT_PROTOCOL_INPUT
 REWRIT_PROTOCOL_OUTPUT
 ```
+
+## Schemas
+
+Generate all current schemas locally with:
+
+```bash
+rewrit schema export --kind all --out-dir dist/schemas
+```
+
+Release workflows publish these files as the `rewrit-protocol-schemas` artifact:
+
+```txt
+rewrit.adapter_request.v1.schema.json
+rewrit.contract.v1.schema.json
+rewrit.event.v1.schema.json
+rewrit.observation.v1.schema.json
+rewrit.report.v1.schema.json
+```

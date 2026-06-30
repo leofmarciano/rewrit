@@ -79,6 +79,8 @@ pub enum SchemaCommand {
     Export {
         #[arg(long, default_value = "report")]
         kind: String,
+        #[arg(long)]
+        out_dir: Option<PathBuf>,
     },
 }
 

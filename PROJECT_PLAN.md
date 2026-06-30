@@ -52,7 +52,7 @@ runtime/framework specific code
 - [x] Define adapter requests for `doctor`, `discover`, and `run`.
 - [x] Reject unsupported or missing protocol versions.
 - [x] Add file-based NDJSON input/output mode in addition to stdout.
-- [ ] Export protocol schemas in release artifacts.
+- [x] Export protocol schemas in release artifacts.
 
 ### 3. Core
 
