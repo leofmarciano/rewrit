@@ -226,43 +226,27 @@ Common modes:
 
 ## Documentation
 
-Concepts:
+Start with the [documentation index](docs/README.md).
 
-- [Parity](docs/concepts/parity.md)
-- [Contracts](docs/concepts/contracts.md)
-- [Observations](docs/concepts/observations.md)
-- [Policies](docs/concepts/policies.md)
-- [Side effects](docs/concepts/side-effects.md)
+Common entry points:
 
-Protocol:
-
-- [Adapter protocol v1](docs/protocol/adapter-protocol-v1.md)
-- [Observation schema v1](docs/protocol/observation-schema-v1.md)
-- [Report schema v1](docs/protocol/report-schema-v1.md)
-
-Adapters:
-
-- [Django](docs/adapters/django.md)
-- [Node Encore](docs/adapters/node-encore.md)
-- [Node Jest](docs/adapters/node-jest.md)
-- [Node Vitest](docs/adapters/node-vitest.md)
-- [PHP Pest](docs/adapters/php-pest.md)
-- [PHPUnit](docs/adapters/php-phpunit.md)
-- [Python Pytest](docs/adapters/python-pytest.md)
-- [Rust Cargo test](docs/adapters/rust-cargo-test.md)
-
-Migration guides:
-
-- [Laravel to Encore](docs/migrations/laravel-to-encore.md)
-- [Laravel to Node](docs/migrations/laravel-to-node.md)
-- [Django to Rust](docs/migrations/django-to-rust.md)
-
-Architecture decisions:
-
-- [NDJSON adapter protocol](docs/adr/0001-ndjson-adapter-protocol.md)
-- [Reference/candidate model](docs/adr/0002-reference-candidate-model.md)
-- [JSON Schema contracts](docs/adr/0003-json-schema-contracts.md)
-- [No language parser in core](docs/adr/0004-no-language-parser-in-core.md)
+- New to Rewrit: [Parity](docs/concepts/parity.md),
+  [contracts](docs/concepts/contracts.md), and
+  [observations](docs/concepts/observations.md).
+- Wiring a runner or framework: [Adapter protocol v1](docs/protocol/adapter-protocol-v1.md)
+  and the adapter guide for your stack.
+- Using an existing SDK: [PHP Pest](docs/adapters/php-pest.md),
+  [PHPUnit](docs/adapters/php-phpunit.md),
+  [Node Vitest](docs/adapters/node-vitest.md),
+  [Node Jest](docs/adapters/node-jest.md),
+  [Node Encore](docs/adapters/node-encore.md),
+  [Python Pytest](docs/adapters/python-pytest.md),
+  [Django](docs/adapters/django.md), or
+  [Rust Cargo test](docs/adapters/rust-cargo-test.md).
+- Planning a migration: [Laravel to Encore](docs/migrations/laravel-to-encore.md),
+  [Laravel to Node](docs/migrations/laravel-to-node.md), or
+  [Django to Rust](docs/migrations/django-to-rust.md).
+- Reviewing design decisions: [ADRs](docs/adr).
 
 ## Repository Layout
 

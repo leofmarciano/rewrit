@@ -1,18 +1,33 @@
 # Django Adapter
 
-Django support should start at HTTP boundary contracts before moving into
-domain internals.
+Django support builds on the Python pytest plugin. Start at HTTP boundaries
+before instrumenting domain internals.
 
-The Python SDK exposes Django helpers from `rewrit_pytest.django`. They do not
-import Django directly; they use the response shape exposed by Django's test
-client and regular `HttpResponse` objects.
+The Django helpers live in `rewrit_pytest.django` and intentionally avoid a hard
+import of Django internals. They operate on common Django test client response
+shapes.
+
+## Manifest
+
+```toml
+[runtimes.reference_django]
+adapter = "command"
+cwd = "../reference-django"
+command = ["python3", "-m", "pytest", "-q"]
+timeout_ms = 30000
+
+[runtimes.reference_django.protocol]
+output = "file"
+```
+
+## HTTP Response Example
 
 ```python
 from rewrit_pytest import rewrit_case
-from rewrit_pytest.django import observe_db_delta, observe_http_response
+from rewrit_pytest.django import db_delta, observe_http_response
 
 
-@rewrit_case("billing.invoice.create.success")
+@rewrit_case("billing.invoice.create.success", suite_id="billing")
 def test_creates_invoice(client):
     response = client.post(
         "/api/invoices",
@@ -24,22 +39,42 @@ def test_creates_invoice(client):
         content_type="application/json",
     )
 
-    observe_http_response(response)
-    observe_db_delta(
-        "invoices",
-        inserted=[{
-            "customer_id": "cus_123",
-            "amount": "199.90",
-            "currency": "BRL",
-            "status": "open",
-        }],
+    observe_http_response(
+        response,
+        effects=[
+            db_delta(
+                "invoices",
+                inserted=[{
+                    "customer_id": "cus_123",
+                    "amount": "199.90",
+                    "currency": "BRL",
+                    "status": "open",
+                }],
+            )
+        ],
     )
 ```
 
-`observe_http_response()` emits a canonical HTTP value with `status`, lowercase
-headers, and a JSON body when the response can be parsed as JSON. Otherwise it
-falls back to a string body.
+`observe_http_response(...)` emits:
 
-`observe_db_delta()` appends a `db_delta` side effect to the current case. It can
-also be passed to `observe_http_response(..., effects=[db_delta(...)])` when a
-single observation event is preferred.
+- `status` as a canonical integer,
+- lowercase response headers,
+- JSON body when parsing succeeds,
+- string body when parsing fails,
+- attached effects when provided.
+
+`observe_db_delta(...)` can be used when you want to add a DB effect after the
+observation:
+
+```python
+from rewrit_pytest.django import observe_db_delta
+
+observe_db_delta("invoices", inserted=[{"status": "open"}])
+```
+
+## Notes
+
+- Prefer API/view tests as the first migration boundary.
+- Capture database deltas only for behavior that downstream systems rely on.
+- Keep Django-specific assertions in pytest; Rewrit compares the canonical
+  observation against the candidate runtime.

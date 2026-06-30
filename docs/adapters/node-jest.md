@@ -1,8 +1,31 @@
 # Node Jest Adapter
 
-The Jest adapter exposes a reporter and a `rewrit(case_id, name, fn)` helper.
+Use the Jest integration when a Node runtime already has Jest tests that can
+emit Rewrit observations.
 
-Configure the reporter:
+The SDK provides:
+
+- `rewrit(caseId, name, fn)` to register a Jest test with a stable case ID,
+- `observe(...)` for JSON-shaped observations,
+- `observeCanonical(...)` for explicit canonical values,
+- `RewritJestReporter` for a lightweight doctor event.
+
+## Manifest
+
+```toml
+[runtimes.candidate]
+adapter = "command"
+cwd = "../candidate"
+command = ["npx", "jest", "--runInBand"]
+timeout_ms = 30000
+
+[runtimes.candidate.protocol]
+output = "file"
+```
+
+File output avoids mixing Jest's human output with Rewrit protocol events.
+
+## Jest Configuration
 
 ```js
 export default {
@@ -10,7 +33,7 @@ export default {
 };
 ```
 
-Use the helper in tests:
+## Test Usage
 
 ```ts
 import { observe, rewrit } from "@rewrit/node/jest-reporter";
@@ -27,5 +50,18 @@ rewrit("billing.invoice.create.success", "creates an invoice", async () => {
 });
 ```
 
-The SDK writes NDJSON to stdout by default and appends to `REWRIT_EVENTS_PATH`
-when the command adapter uses file transport.
+The helper uses the global Jest `test(...)` function. If your project wraps the
+test API, pass it as the fourth argument:
+
+```ts
+rewrit("case.id", "title", async () => {
+  observe({ ok: true });
+}, customTest);
+```
+
+## Notes
+
+- Prefer one Rewrit case per domain behavior.
+- Keep assertions in Jest; Rewrit observes behavior for cross-runtime
+  comparison.
+- Use `REWRIT_EVENTS_PATH` file output for real test suites.

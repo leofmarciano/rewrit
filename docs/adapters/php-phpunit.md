@@ -1,9 +1,32 @@
 # PHP PHPUnit Adapter
 
-The PHPUnit adapter exposes an extension plus a trait for marking tests with
-stable Rewrit case IDs.
+Use the PHPUnit integration when a PHP runtime uses PHPUnit directly rather
+than Pest.
 
-Register the extension in `phpunit.xml`:
+The SDK provides:
+
+- `Rewrit\PHPUnitCase` trait,
+- `rewrit(...)` case marker method,
+- `observeRewrit(...)` observation helper,
+- `Rewrit\Rewrit::observeCanonical(...)` for explicit canonical values.
+
+## Manifest
+
+```toml
+[runtimes.reference_php]
+adapter = "command"
+cwd = "../reference"
+command = ["vendor/bin/phpunit", "--colors=never"]
+timeout_ms = 30000
+
+[runtimes.reference_php.protocol]
+output = "file"
+```
+
+## PHPUnit Configuration
+
+Register the extension in `phpunit.xml` when you want a runner-level doctor
+event:
 
 ```xml
 <extensions>
@@ -11,7 +34,7 @@ Register the extension in `phpunit.xml`:
 </extensions>
 ```
 
-Use `Rewrit\PHPUnitCase` in test classes:
+## Test Usage
 
 ```php
 <?php
@@ -25,7 +48,7 @@ final class InvoiceTest extends TestCase
 
     public function testCreatesInvoice(): void
     {
-        $this->rewrit('billing.invoice.create.success');
+        $this->rewrit('billing.invoice.create.success', 'billing');
 
         $this->observeRewrit([
             'id' => 'inv_123',
@@ -37,5 +60,13 @@ final class InvoiceTest extends TestCase
 }
 ```
 
-The SDK writes NDJSON to stdout by default and appends to `REWRIT_EVENTS_PATH`
-when the command adapter is configured with file transport.
+The SDK writes protocol events to stdout by default and appends to
+`REWRIT_EVENTS_PATH` when file transport is configured.
+
+## Notes
+
+- Use the trait in tests that represent cross-runtime behavior.
+- Keep PHPUnit assertions in the test; Rewrit compares observations across
+  runtimes.
+- Use explicit canonical observations when PHP type conversion would hide a
+  migration-relevant difference.
