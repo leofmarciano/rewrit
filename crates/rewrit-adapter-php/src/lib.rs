@@ -8,6 +8,7 @@ pub const LARAVEL_ADAPTER: &str = "php:laravel";
 
 pub mod laravel {
     pub const SDK_HELPER: &str = "Rewrit\\Rewrit";
+    pub const LARAVEL_HELPER: &str = "Rewrit\\Laravel";
 }
 
 pub mod pest {
