@@ -130,7 +130,7 @@ runtime/framework specific code
 - [x] Pest plugin with `rewrit(case_id)`.
 - [x] PHPUnit extension.
 - [x] Laravel helpers for HTTP response and DB deltas.
-- [ ] Vitest reporter and `test.rewrit`.
+- [x] Vitest reporter and `test.rewrit`.
 - [ ] Jest reporter.
 - [ ] Encore helper(you will need to search about [encore.dev](http://encore.dev) ! its a runtime dont have .env and some props).
 - [ ] Pytest plugin collection hooks.

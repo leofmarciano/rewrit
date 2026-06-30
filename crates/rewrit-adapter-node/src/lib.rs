@@ -16,4 +16,5 @@ pub mod jest {
 
 pub mod vitest {
     pub const REPORTER: &str = "@rewrit/node/vitest-reporter";
+    pub const TEST_HELPER: &str = "@rewrit/node/vitest-reporter";
 }

@@ -9,6 +9,13 @@
     "./vitest-reporter": "./src/vitest-reporter.ts",
     "./jest-reporter": "./src/jest-reporter.ts",
     "./encore": "./src/encore.ts"
+  },
+  "peerDependencies": {
+    "vitest": ">=1"
+  },
+  "peerDependenciesMeta": {
+    "vitest": {
+      "optional": true
+    }
   }
 }
-
