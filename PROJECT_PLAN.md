@@ -77,7 +77,7 @@ runtime/framework specific code
 - [x] Map failures to documented exit codes.
 - [x] Persist timestamped baselines beside `current.jsonl`.
 - [ ] Add global cancellation/timeout handling.
-- [ ] Add lock files to prevent concurrent writes to the same store.
+- [x] Add lock files to prevent concurrent writes to the same store.
 - [x] Validate contract expectations against observations and report
   `schema_mismatch`.
 

@@ -229,6 +229,9 @@ impl Engine {
 
     pub async fn capture(&self, runtime_id: &RuntimeId) -> Result<Report, EngineError> {
         let run = self.run_runtime(runtime_id).await?;
+        let _baseline_lock = self
+            .store
+            .acquire_lock(&format!("baseline-{}", runtime_id.as_str()))?;
         baseline::write_current(&self.store, runtime_id, &run.observations)?;
         let report =
             self.report_from_divergences("capture", run.cases, run.observations, Vec::new());
@@ -835,6 +838,7 @@ impl Engine {
             self.manifest.reports.clone()
         };
 
+        let _reports_lock = self.store.acquire_lock("reports")?;
         for config in reports {
             if config.kind == "terminal" && config.path.is_none() {
                 continue;
