@@ -70,7 +70,7 @@ runtime/framework specific code
 - [x] Implement JSON unordered array paths.
 - [ ] Implement DB delta field/table mapping in comparison.
 - [ ] Implement queue/event/file/cache/email/log comparators.
-- [ ] Add property tests for idempotent normalization and `compare(a, a)`.
+- [x] Add property tests for idempotent normalization and `compare(a, a)`.
 
 ### 4. Engine
 
