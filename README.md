@@ -1,6 +1,9 @@
 # Rewrit
 
 [![CI](https://github.com/leofmarciano/rewrit/actions/workflows/ci.yml/badge.svg)](https://github.com/leofmarciano/rewrit/actions/workflows/ci.yml)
+[![crates.io](https://img.shields.io/crates/v/rewrit-cli.svg)](https://crates.io/crates/rewrit-cli)
+[![npm](https://img.shields.io/npm/v/%40rewrit%2Fnode.svg)](https://www.npmjs.com/package/@rewrit/node)
+[![Packagist](https://img.shields.io/packagist/v/rewrit/rewrit.svg)](https://packagist.org/packages/rewrit/rewrit)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
 [![Rust 1.80+](https://img.shields.io/badge/rust-1.80%2B-orange.svg)](Cargo.toml)
 
@@ -61,6 +64,18 @@ Today the repository includes:
 - terminal, JSON, NDJSON, JUnit, SARIF, HTML, and Markdown report code,
 - runnable migration examples.
 
+## Packages
+
+Rewrit is published on the package registries used by each supported
+ecosystem:
+
+| Ecosystem | Package | Install |
+| --- | --- | --- |
+| CLI on crates.io | [`rewrit-cli`](https://crates.io/crates/rewrit-cli) | `cargo install rewrit-cli` |
+| Rust SDK on crates.io | [`rewrit`](https://crates.io/crates/rewrit) | `cargo add rewrit` |
+| Node SDK on npm | [`@rewrit/node`](https://www.npmjs.com/package/@rewrit/node) | `npm install @rewrit/node` |
+| PHP SDK on Packagist | [`rewrit/rewrit`](https://packagist.org/packages/rewrit/rewrit) | `composer require rewrit/rewrit` |
+
 ## Quickstart
 
 Install Rust 1.80 or newer, then install the CLI from crates.io:
@@ -77,12 +92,6 @@ git clone https://github.com/leofmarciano/rewrit.git
 cd rewrit
 cargo build -p rewrit-cli --release
 ./target/release/rewrit --help
-```
-
-Install the PHP SDK from Composer:
-
-```bash
-composer require rewrit/rewrit
 ```
 
 Run a passing Laravel-to-Encore shaped fixture:
