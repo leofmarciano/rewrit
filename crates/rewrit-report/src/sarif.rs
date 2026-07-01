@@ -32,7 +32,7 @@ pub fn render(report: &Report) -> Result<String, serde_json::Error> {
             "tool": {
                 "driver": {
                     "name": "rewrit",
-                    "informationUri": "https://github.com/rewrit/rewrit",
+                    "informationUri": "https://github.com/leofmarciano/rewrit",
                     "rules": []
                 }
             },

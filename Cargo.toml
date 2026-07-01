@@ -21,18 +21,22 @@ members = [
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/rewrit/rewrit"
-homepage = "https://github.com/rewrit/rewrit"
+repository = "https://github.com/leofmarciano/rewrit"
+homepage = "https://github.com/leofmarciano/rewrit"
 description = "Parity engine for validating observable behavior during rewrites."
 rust-version = "1.80"
+readme = "README.md"
+keywords = ["rewrites", "testing", "migration", "parity"]
+categories = ["command-line-utilities", "development-tools::testing"]
 
 [workspace.dependencies]
-rewrit-model = { path = "crates/rewrit-model" }
-rewrit-core = { path = "crates/rewrit-core" }
-rewrit-engine = { path = "crates/rewrit-engine" }
-rewrit-protocol = { path = "crates/rewrit-protocol" }
-rewrit-report = { path = "crates/rewrit-report" }
-rewrit-adapter-http = { path = "crates/rewrit-adapter-http" }
+rewrit-model = { version = "0.1.0", path = "crates/rewrit-model" }
+rewrit-core = { version = "0.1.0", path = "crates/rewrit-core" }
+rewrit-engine = { version = "0.1.0", path = "crates/rewrit-engine" }
+rewrit-protocol = { version = "0.1.0", path = "crates/rewrit-protocol" }
+rewrit-report = { version = "0.1.0", path = "crates/rewrit-report" }
+rewrit-adapter-http = { version = "0.1.0", path = "crates/rewrit-adapter-http" }
+rewrit-macros = { version = "0.1.0", path = "sdks/rust-macros" }
 
 base64 = "0.22"
 camino = { version = "1", features = ["serde1"] }

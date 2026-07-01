@@ -1,0 +1,149 @@
+name: publish-cargo
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish to crates.io. Leave false to run validation only.
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-cargo-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      SHOULD_PUBLISH: ${{ github.event_name == 'release' || inputs.publish == true }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Validate workspace
+        run: |
+          cargo fmt --all -- --check
+          cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+          cargo test --workspace --all-features --locked
+
+      - name: Publish crates
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          packages=(
+            rewrit-model
+            rewrit-macros
+            rewrit-core
+            rewrit-protocol
+            rewrit-report
+            rewrit-adapter-http
+            rewrit-adapter-php
+            rewrit-adapter-node
+            rewrit-adapter-python
+            rewrit-adapter-rust
+            rewrit
+            rewrit-engine
+            rewrit-adapter-command
+            rewrit-cli
+          )
+
+          version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)"
+          if [[ -z "$version" ]]; then
+            echo "::error::Could not read workspace package version from Cargo.toml"
+            exit 1
+          fi
+
+          if [[ "$SHOULD_PUBLISH" == "true" && "$GITHUB_EVENT_NAME" == "release" ]]; then
+            if [[ "$GITHUB_REF_NAME" != "$version" && "$GITHUB_REF_NAME" != "v$version" ]]; then
+              echo "::error::Release tag $GITHUB_REF_NAME does not match Cargo version $version"
+              exit 1
+            fi
+          fi
+
+          crate_version_exists() {
+            local crate="$1"
+            local code
+            code="$(
+              curl \
+                --silent \
+                --show-error \
+                --location \
+                --user-agent "leofmarciano/rewrit GitHub Actions" \
+                --output /dev/null \
+                --write-out "%{http_code}" \
+                "https://crates.io/api/v1/crates/${crate}/${version}"
+            )"
+
+            case "$code" in
+              200) return 0 ;;
+              404) return 1 ;;
+              *)
+                echo "::error::Unexpected crates.io response for ${crate} ${version}: HTTP ${code}"
+                return 2
+                ;;
+            esac
+          }
+
+          wait_for_crate() {
+            local crate="$1"
+            local status
+
+            for attempt in {1..30}; do
+              if crate_version_exists "$crate"; then
+                echo "${crate} ${version} is visible on crates.io"
+                return 0
+              fi
+
+              status=$?
+              if [[ "$status" -eq 2 ]]; then
+                exit 1
+              fi
+
+              echo "Waiting for ${crate} ${version} to appear in crates.io (${attempt}/30)"
+              sleep 10
+            done
+
+            echo "::error::Timed out waiting for ${crate} ${version} to appear in crates.io"
+            exit 1
+          }
+
+          if [[ "$SHOULD_PUBLISH" != "true" ]]; then
+            echo "Validation mode. Running publish dry-run for crates without unpublished workspace dependencies."
+            cargo publish --package rewrit-model --dry-run --locked
+            cargo publish --package rewrit-macros --dry-run --locked
+            exit 0
+          fi
+
+          if [[ -z "${CARGO_REGISTRY_TOKEN:-}" ]]; then
+            echo "::error::Missing CARGO_TOKEN repository secret"
+            exit 1
+          fi
+
+          for package in "${packages[@]}"; do
+            if crate_version_exists "$package"; then
+              echo "${package} ${version} is already published; skipping"
+              wait_for_crate "$package"
+              continue
+            fi
+
+            status=$?
+            if [[ "$status" -eq 2 ]]; then
+              exit 1
+            fi
+
+            cargo publish --package "$package" --locked
+            wait_for_crate "$package"
+          done

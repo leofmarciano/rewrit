@@ -1,6 +1,6 @@
 # Rewrit
 
-[![CI](https://github.com/rewrit/rewrit/actions/workflows/ci.yml/badge.svg)](https://github.com/rewrit/rewrit/actions/workflows/ci.yml)
+[![CI](https://github.com/leofmarciano/rewrit/actions/workflows/ci.yml/badge.svg)](https://github.com/leofmarciano/rewrit/actions/workflows/ci.yml)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
 [![Rust 1.80+](https://img.shields.io/badge/rust-1.80%2B-orange.svg)](Cargo.toml)
 
@@ -63,10 +63,17 @@ Today the repository includes:
 
 ## Quickstart
 
-Install Rust 1.80 or newer, then build from source:
+Install Rust 1.80 or newer, then install the CLI from crates.io:
 
 ```bash
-git clone https://github.com/rewrit/rewrit.git
+cargo install rewrit-cli
+rewrit --help
+```
+
+Or build from source:
+
+```bash
+git clone https://github.com/leofmarciano/rewrit.git
 cd rewrit
 cargo build -p rewrit-cli --release
 ./target/release/rewrit --help
