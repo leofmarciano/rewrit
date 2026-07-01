@@ -1,7 +1,7 @@
 # Rewrit
 
 [![CI](https://github.com/leofmarciano/rewrit/actions/workflows/ci.yml/badge.svg)](https://github.com/leofmarciano/rewrit/actions/workflows/ci.yml)
-[![crates.io](https://img.shields.io/crates/v/rewrit-cli.svg)](https://crates.io/crates/rewrit-cli)
+[![crates.io](https://img.shields.io/crates/v/rewrit-core.svg)](https://crates.io/crates/rewrit-core)
 [![npm](https://img.shields.io/npm/v/%40rewrit%2Fnode.svg)](https://www.npmjs.com/package/@rewrit/node)
 [![Packagist](https://img.shields.io/packagist/v/rewrit/rewrit.svg)](https://packagist.org/packages/rewrit/rewrit)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
@@ -66,26 +66,19 @@ Today the repository includes:
 
 ## Packages
 
-Rewrit is published on the package registries used by each supported
-ecosystem:
+Rewrit packages are published across the registries used by each supported
+ecosystem. The CLI is not published as a standalone crates.io package yet; use
+the source build in the quickstart below.
 
 | Ecosystem | Package | Install |
 | --- | --- | --- |
-| CLI on crates.io | [`rewrit-cli`](https://crates.io/crates/rewrit-cli) | `cargo install rewrit-cli` |
-| Rust SDK on crates.io | [`rewrit`](https://crates.io/crates/rewrit) | `cargo add rewrit` |
+| Rust crates on crates.io | [`rewrit-core`](https://crates.io/crates/rewrit-core), [`rewrit-model`](https://crates.io/crates/rewrit-model), [`rewrit-protocol`](https://crates.io/crates/rewrit-protocol), [`rewrit-report`](https://crates.io/crates/rewrit-report), [`rewrit-macros`](https://crates.io/crates/rewrit-macros) | Example: `cargo add rewrit-core` |
 | Node SDK on npm | [`@rewrit/node`](https://www.npmjs.com/package/@rewrit/node) | `npm install @rewrit/node` |
 | PHP SDK on Packagist | [`rewrit/rewrit`](https://packagist.org/packages/rewrit/rewrit) | `composer require rewrit/rewrit` |
 
 ## Quickstart
 
-Install Rust 1.80 or newer, then install the CLI from crates.io:
-
-```bash
-cargo install rewrit-cli
-rewrit --help
-```
-
-Or build from source:
+Install Rust 1.80 or newer, then build the CLI from source:
 
 ```bash
 git clone https://github.com/leofmarciano/rewrit.git
