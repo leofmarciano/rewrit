@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/leofmarciano/rewrit/actions/workflows/ci.yml/badge.svg)](https://github.com/leofmarciano/rewrit/actions/workflows/ci.yml)
 [![crates.io](https://img.shields.io/crates/v/rewrit-core.svg)](https://crates.io/crates/rewrit-core)
-[![npm](https://img.shields.io/npm/v/%40rewrit%2Fnode.svg)](https://www.npmjs.com/package/@rewrit/node)
+[![npm package](https://img.shields.io/badge/npm-@leofmarciano%2Frewrit--node-CB3837.svg)](#packages)
 [![Packagist](https://img.shields.io/packagist/v/rewrit/rewrit.svg)](https://packagist.org/packages/rewrit/rewrit)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue.svg)](#license)
 [![Rust 1.80+](https://img.shields.io/badge/rust-1.80%2B-orange.svg)](Cargo.toml)
@@ -73,7 +73,7 @@ the source build in the quickstart below.
 | Ecosystem | Package | Install |
 | --- | --- | --- |
 | Rust crates on crates.io | [`rewrit-core`](https://crates.io/crates/rewrit-core), [`rewrit-model`](https://crates.io/crates/rewrit-model), [`rewrit-protocol`](https://crates.io/crates/rewrit-protocol), [`rewrit-report`](https://crates.io/crates/rewrit-report), [`rewrit-macros`](https://crates.io/crates/rewrit-macros) | Example: `cargo add rewrit-core` |
-| Node SDK on npm | [`@rewrit/node`](https://www.npmjs.com/package/@rewrit/node) | `npm install @rewrit/node` |
+| Node SDK via npm | `@leofmarciano/rewrit-node` | `npm install @leofmarciano/rewrit-node@0.1.0` |
 | PHP SDK on Packagist | [`rewrit/rewrit`](https://packagist.org/packages/rewrit/rewrit) | `composer require rewrit/rewrit` |
 
 ## Quickstart

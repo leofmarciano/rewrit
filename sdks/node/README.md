@@ -1,13 +1,13 @@
-# @rewrit/node
+# @leofmarciano/rewrit-node
 
 Node SDK and test-runner helpers for the Rewrit parity engine.
 
 ```bash
-npm install @rewrit/node
+npm install @leofmarciano/rewrit-node@0.1.0
 ```
 
 ```ts
-import { caseDiscovered, observe } from "@rewrit/node";
+import { caseDiscovered, observe } from "@leofmarciano/rewrit-node";
 
 caseDiscovered("billing.invoice.create.success", "billing");
 observe({ status: "open", amount: "199.90" });
@@ -18,10 +18,10 @@ set, or to stdout otherwise.
 
 Exports:
 
-- `@rewrit/node`
-- `@rewrit/node/vitest-reporter`
-- `@rewrit/node/jest-reporter`
-- `@rewrit/node/encore`
+- `@leofmarciano/rewrit-node`
+- `@leofmarciano/rewrit-node/vitest-reporter`
+- `@leofmarciano/rewrit-node/jest-reporter`
+- `@leofmarciano/rewrit-node/encore`
 
 ## Publishing
 
