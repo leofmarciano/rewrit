@@ -1,5 +1,7 @@
 .rewrit/
 /target/
+/vendor/
+/composer.lock
 node_modules/
 sdks/node/dist/
 /.DS_Store

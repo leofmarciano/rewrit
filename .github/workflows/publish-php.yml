@@ -1,0 +1,62 @@
+name: publish-php
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Packagist action
+        required: true
+        default: create
+        type: choice
+        options:
+          - create
+          - update
+
+permissions:
+  contents: read
+
+jobs:
+  packagist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.2"
+          tools: composer
+      - run: composer validate --strict
+      - run: composer dump-autoload --no-dev --classmap-authoritative
+      - name: Smoke test PHP SDK autoload
+        run: |
+          php <<'PHP'
+          <?php
+          require __DIR__ . '/vendor/autoload.php';
+          if (!class_exists(\Rewrit\Rewrit::class)) {
+              fwrite(STDERR, "Rewrit SDK autoload failed\n");
+              exit(1);
+          }
+          PHP
+      - name: Create package on Packagist
+        if: ${{ inputs.action == 'create' }}
+        run: |
+          curl --fail-with-body \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer ${PACKAGIST_USERNAME}:${PACKAGIST_TOKEN}" \
+            https://packagist.org/api/create-package \
+            -d '{"repository":"https://github.com/leofmarciano/rewrit"}'
+        env:
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
+          PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}
+      - name: Update package on Packagist
+        if: ${{ inputs.action == 'update' }}
+        run: |
+          curl --fail-with-body \
+            -X POST \
+            -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer ${PACKAGIST_USERNAME}:${PACKAGIST_TOKEN}" \
+            https://packagist.org/api/update-package \
+            -d '{"repository":"https://github.com/leofmarciano/rewrit"}'
+        env:
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
+          PACKAGIST_TOKEN: ${{ secrets.PACKAGIST_TOKEN }}

@@ -79,6 +79,12 @@ cargo build -p rewrit-cli --release
 ./target/release/rewrit --help
 ```
 
+Install the PHP SDK from Composer:
+
+```bash
+composer require rewrit/rewrit
+```
+
 Run a passing Laravel-to-Encore shaped fixture:
 
 ```bash

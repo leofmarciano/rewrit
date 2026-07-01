@@ -1,0 +1,36 @@
+{
+  "name": "rewrit/rewrit",
+  "description": "PHP SDK for emitting Rewrit observations from Pest, PHPUnit and Laravel tests.",
+  "type": "library",
+  "keywords": [
+    "rewrit",
+    "parity",
+    "testing",
+    "migration",
+    "laravel",
+    "pest",
+    "phpunit"
+  ],
+  "homepage": "https://github.com/leofmarciano/rewrit",
+  "license": "MIT OR Apache-2.0",
+  "authors": [
+    {
+      "name": "Rewrit contributors"
+    }
+  ],
+  "support": {
+    "issues": "https://github.com/leofmarciano/rewrit/issues",
+    "source": "https://github.com/leofmarciano/rewrit"
+  },
+  "autoload": {
+    "psr-4": {
+      "Rewrit\\": "sdks/php/src/"
+    },
+    "files": [
+      "sdks/php/src/Autoload.php"
+    ]
+  },
+  "require": {
+    "php": ">=8.2"
+  }
+}
