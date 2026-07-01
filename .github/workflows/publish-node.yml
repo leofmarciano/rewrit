@@ -1,0 +1,71 @@
+name: publish-node
+
+on:
+  workflow_dispatch:
+    inputs:
+      registry:
+        description: Registry to publish to
+        required: true
+        default: npm
+        type: choice
+        options:
+          - npm
+          - github
+          - both
+
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+
+jobs:
+  npm:
+    if: ${{ inputs.registry == 'npm' || inputs.registry == 'both' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+        working-directory: sdks/node
+      - run: npm run build
+        working-directory: sdks/node
+      - run: npm publish --access public --provenance
+        working-directory: sdks/node
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  github:
+    if: ${{ inputs.registry == 'github' || inputs.registry == 'both' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://npm.pkg.github.com
+          scope: "@${{ github.repository_owner }}"
+      - run: npm ci
+        working-directory: sdks/node
+      - run: npm run build
+        working-directory: sdks/node
+      - name: Prepare GitHub Packages package name
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+          const owner = process.env.GITHUB_REPOSITORY_OWNER.toLowerCase();
+          pkg.name = `@${owner}/rewrit-node`;
+          pkg.publishConfig = {
+            ...(pkg.publishConfig ?? {}),
+            registry: "https://npm.pkg.github.com",
+          };
+          fs.writeFileSync("package.json", `${JSON.stringify(pkg, null, 2)}\n`);
+          NODE
+        working-directory: sdks/node
+      - run: npm publish --registry=https://npm.pkg.github.com
+        working-directory: sdks/node
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,14 +1,55 @@
 {
   "name": "@rewrit/node",
   "version": "0.1.0",
+  "description": "Node SDK and test-runner helpers for the Rewrit parity engine.",
   "type": "module",
   "license": "MIT OR Apache-2.0",
-  "main": "src/index.ts",
+  "homepage": "https://github.com/leofmarciano/rewrit#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/leofmarciano/rewrit.git",
+    "directory": "sdks/node"
+  },
+  "bugs": {
+    "url": "https://github.com/leofmarciano/rewrit/issues"
+  },
+  "sideEffects": false,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./vitest-reporter": "./src/vitest-reporter.ts",
-    "./jest-reporter": "./src/jest-reporter.ts",
-    "./encore": "./src/encore.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./vitest-reporter": {
+      "types": "./dist/vitest-reporter.d.ts",
+      "import": "./dist/vitest-reporter.js"
+    },
+    "./jest-reporter": {
+      "types": "./dist/jest-reporter.d.ts",
+      "import": "./dist/jest-reporter.js"
+    },
+    "./encore": {
+      "types": "./dist/encore.d.ts",
+      "import": "./dist/encore.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "pack:dry-run": "npm pack --dry-run",
+    "prepack": "npm run build",
+    "publish:npm": "npm publish --access public",
+    "publish:github": "npm publish --registry=https://npm.pkg.github.com"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "peerDependencies": {
     "jest": ">=29",
@@ -21,5 +62,9 @@
     "vitest": {
       "optional": true
     }
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
   }
 }

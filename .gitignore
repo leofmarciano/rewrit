@@ -1,5 +1,7 @@
 .rewrit/
 /target/
+node_modules/
+sdks/node/dist/
 /.DS_Store
 *.log
 PROJECT_PLAN.md
